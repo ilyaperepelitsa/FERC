@@ -21,13 +21,57 @@ class FercgovSpider(scrapy.Spider):
     docslimit = 200
     # dockets = ["CP16-17", "CP15-500"]
     dockets = ["CP16-17"]
+    # dockets = []
     # search = "pipeline"
-    search = ""
+    # search = ""
 
 
     def parse(self, response):
 
-        for docket in self.dockets:
+        if len(self.dockets) > 0:
+
+            for docket in self.dockets:
+
+                query = FormRequest.from_response(response,
+                                        formdata = {
+                                                    # "FROMdt" : "",
+                                                    # "TOdt" : "",
+                                                    "firstDt" : "1/1/1904",
+                                                    "LastDt" : "12/31/2037",
+                                                    "DocsStart" : str(self.docstart),
+                                                    "DocsLimit" : str(self.docslimit),
+                                                    # "SortSpec" : "filed_date desc accession_num asc",
+                                                    # "datefield" : "filed_date",
+                                                    # "dFROM" : "10/08/2017",
+                                                    # "dTO" : "11/08/2017",
+                                                    # "dYEAR" : "1",
+                                                    # "dMONTH" : "1",
+                                                    # "dDAY" : "1",
+                                                    "date" : "All",
+                                                    # "NotCategories" : "submittal,issuance",
+                                                    "category" : "submittal,issuance",
+                                                    # "category" : "submittal",
+                                                    # "category" : "issuance",
+                                                    "libraryall" : "electric, hydro, gas, rulemaking, oil, general",
+                                                    "docket" : str(docket),
+                                                    "subdock_radio" : "all_subdockets",
+                                                    # "class" : "999",
+                                                    # "type" : "999",
+                                                    "textsearch" : str(self.search),
+                                                    "description" : "description",
+                                                    "fulltext" : "fulltext",
+                                                    "DocsCount" : str(self.doccoutner)},
+                                        # clickdata={'name': 'commit'},
+                                        callback=self.parse_query, dont_filter = True)
+                query.meta["DocsStart"] = str(self.docstart)
+                query.meta["docket"] = str(docket)
+                query.meta["textsearch"] = str(self.search)
+                query.meta["DocsCount"] = str(self.doccoutner)
+                query.meta["DocsLimit"] = str(self.docslimit)
+
+                yield query
+        else:
+
 
             query = FormRequest.from_response(response,
                                     formdata = {
@@ -50,7 +94,7 @@ class FercgovSpider(scrapy.Spider):
                                                 # "category" : "submittal",
                                                 # "category" : "issuance",
                                                 "libraryall" : "electric, hydro, gas, rulemaking, oil, general",
-                                                "docket" : str(docket),
+                                                "docket" : "",
                                                 "subdock_radio" : "all_subdockets",
                                                 # "class" : "999",
                                                 # "type" : "999",
@@ -61,7 +105,7 @@ class FercgovSpider(scrapy.Spider):
                                     # clickdata={'name': 'commit'},
                                     callback=self.parse_query, dont_filter = True)
             query.meta["DocsStart"] = str(self.docstart)
-            query.meta["docket"] = str(docket)
+            query.meta["docket"] = ""
             query.meta["textsearch"] = str(self.search)
             query.meta["DocsCount"] = str(self.doccoutner)
             query.meta["DocsLimit"] = str(self.docslimit)
