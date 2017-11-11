@@ -20,9 +20,9 @@ class FercgovSpider(scrapy.Spider):
     doccoutner = 200
     docslimit = 200
     # dockets = ["CP16-17", "CP15-500"]
-    dockets = ["CP16-17"]
-    # dockets = []
-    # search = "pipeline"
+    # dockets = ["CP16-17"]
+    dockets = []
+    search = "pipeline"
     # search = ""
 
 
@@ -70,6 +70,7 @@ class FercgovSpider(scrapy.Spider):
                 query.meta["DocsLimit"] = str(self.docslimit)
 
                 yield query
+                open_in_browser(response)
         else:
 
 
@@ -111,6 +112,7 @@ class FercgovSpider(scrapy.Spider):
             query.meta["DocsLimit"] = str(self.docslimit)
 
             yield query
+            open_in_browser(response)
         # pass
 
     def parse_query(self, response):
@@ -209,7 +211,7 @@ class FercgovSpider(scrapy.Spider):
         yield {"pew2" : [len(page_rows), docket, docstart, doccouter]}
 
 
-        # open_in_browser(response)
+        open_in_browser(response)
 
 # 15 + 167
 #
