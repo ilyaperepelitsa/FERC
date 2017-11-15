@@ -20,7 +20,7 @@ class FercgovSpider(scrapy.Spider):
     doccounter = 200
     docslimit = 200
     # dockets = ["CP16-17", "CP15-500"]
-    dockets = ["CP15-500"]
+    dockets = ["CP16-17"]
     # dockets = []
     # search = "pipeline"
     search = ""
@@ -175,7 +175,7 @@ class FercgovSpider(scrapy.Spider):
 
     def parse_query(self, response):
 
-        open_in_browser(response)
+        # open_in_browser(response)
 
         page_rows = response.xpath('//tr[@bgcolor and not(@bgcolor="navy")]').extract()
         next_pages = response.xpath('//a[text()="NextPage"]').extract()
@@ -296,7 +296,10 @@ class FercgovSpider(scrapy.Spider):
         # yield {"pew2" : self.update_settings}
         # parse_query
 
-        yield {"pew2" : [len(page_rows), docket, docstart, doccounter]}
+        # yield {"pew2" : [len(page_rows), docket, docstart, doccounter]}
+        for i in page_rows:
+
+            yield {"pew2" : i}
 
 
         # open_in_browser(response)
