@@ -186,6 +186,12 @@ class FercgovSpider(scrapy.Spider):
         doccounter = int(response.meta["DocsCount"])
         docslimit = int(response.meta["DocsLimit"])
 
+        for row in page_rows:
+            columns = row.xpath('td').extract()
+            yield {"pew2" : columns[0]}
+            # yield {"pew2" : columns[0]}
+
+
         # next_pages = LinkExtractor(allow=(),
         #                 restrict_xpaths = '//a[text()="NextPage"]',
         #                 unique = True).extract_links(response)
@@ -297,9 +303,9 @@ class FercgovSpider(scrapy.Spider):
         # parse_query
 
         # yield {"pew2" : [len(page_rows), docket, docstart, doccounter]}
-        for i in page_rows:
 
-            yield {"pew2" : i}
+
+
 
 
         # open_in_browser(response)
