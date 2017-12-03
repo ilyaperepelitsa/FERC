@@ -7,8 +7,9 @@ from scrapy.utils.response import open_in_browser
 from scrapy.linkextractors import LinkExtractor
 # from scrape_jobs.items import JobItem
 from scrapy.loader import ItemLoader
-
-
+# from scrapy.selector import HtmlXPathSelector
+from scrapy.selector import Selector
+from scrapy.http import HtmlResponse
 # for docket in dockets:
 
 class FercgovSpider(scrapy.Spider):
@@ -176,8 +177,110 @@ class FercgovSpider(scrapy.Spider):
     def parse_query(self, response):
 
         # open_in_browser(response)
-
+        # hxs = HtmlXPathSelector(response)
         page_rows = response.xpath('//tr[@bgcolor and not(@bgcolor="navy")]').extract()
+        # page_rows = response.xpath('//tr[@bgcolor and not(@bgcolor="navy")]')
+        for row in page_rows:
+            sel = Selector(text = row)
+            # row_response = HtmlResponse(url = "none", body=row)
+            columns = sel.xpath('body/tr/td').extract()
+
+            ## SUBMITTAL/ISSUANCE + #
+            sel2 = Selector(text = columns[0])
+            text_pew = sel2.xpath("//*[not(name()='a')]/text()").extract()
+            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
+            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+
+            ## SUBMITTAL/ISSUANCE DOCUMENT COMPONENTS LINK
+            ##################### USELESS - SAME INFO IS CONTAINED ELSEWHERE
+            sel2 = Selector(text = columns[0])
+            text_pew = sel2.xpath("//a/@href").extract()
+            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
+            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+
+            ## DOC DATE / PUBLISH DATE
+            sel2 = Selector(text = columns[1])
+            text_pew = sel2.xpath("//text()").extract()
+            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
+            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+            text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+
+            ## DOCKET NUMBER / NUMBERS
+            sel2 = Selector(text = columns[2])
+            text_pew = sel2.xpath("//*[not(name()='a')]/text()").extract()
+            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
+            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+            text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+
+            ## DESCRIPTION
+            sel2 = Selector(text = columns[3])
+            text_pew = sel2.xpath("//text()").extract()
+            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
+            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+            text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+            text_pew = text_pew[0]
+
+            ## AVAILABILITY - ONLY PUBLIC ARE DOWNLOADABLE
+            sel2 = Selector(text = columns[3])
+            text_pew = sel2.xpath("//text()").extract()
+            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
+            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+            text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+            text_pew = text_pew[1]
+
+            ## CLASS + TYPE
+            sel2 = Selector(text = columns[4])
+            text_pew = sel2.xpath("//text()").extract()
+            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
+            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+            text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+            text_pew = text_pew[0]
+
+            ## TYPE
+            sel2 = Selector(text = columns[4])
+            text_pew = sel2.xpath("//text()").extract()
+            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
+            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+            text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+            text_pew = text_pew[1]
+            # #
+            # #
+            # #PDF AND EXCEL LINKS - NAMES
+            # sel2 = Selector(text = columns[5])
+            # text_pew = sel2.xpath("//a/text()").extract()
+            # text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
+            # text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+            # text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+            #
+            # #PDF AND EXCEL LINKS - LINKS
+            # sel2 = Selector(text = columns[5])
+            # text_pew = sel2.xpath("//a/@href").extract()
+            # text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
+            # text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+            # text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+            # #
+            # ## FILE AND INFO TEXT
+            # sel2 = Selector(text = columns[6])
+            # text_pew = sel2.xpath("//a/text()").extract()
+            # text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
+            # text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+            # text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+            #
+            # ## FILE AND INFO LINKS
+            # sel2 = Selector(text = columns[6])
+            # text_pew = sel2.xpath("//a/@href").extract()
+            # text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
+            # text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+            # text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+            #
+
+
+            # yield {"pew2" : columns}
+            yield {"pew2" : text_pew}
+            # yield {"pew2" : len(columns)}
+
+
+        # page_rows = response.xpath('//tr[@bgcolor and not(@bgcolor="navy")]').extract()
         next_pages = response.xpath('//a[text()="NextPage"]').extract()
 
         docstart = int(response.meta["DocsStart"])
@@ -186,9 +289,9 @@ class FercgovSpider(scrapy.Spider):
         doccounter = int(response.meta["DocsCount"])
         docslimit = int(response.meta["DocsLimit"])
 
-        for row in page_rows:
-            columns = row.xpath('td').extract()
-            yield {"pew2" : columns[0]}
+        # for row in page_rows:
+        #     columns = row.xpath('td').extract()
+        #     yield {"pew2" : columns[0]}
             # yield {"pew2" : columns[0]}
 
 
