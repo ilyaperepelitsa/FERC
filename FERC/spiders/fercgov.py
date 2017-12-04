@@ -228,7 +228,7 @@ class FercgovSpider(scrapy.Spider):
             text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
             text_pew = text_pew[1]
 
-            ## CLASS + TYPE
+            ## CLASS 
             sel2 = Selector(text = columns[4])
             text_pew = sel2.xpath("//text()").extract()
             text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
