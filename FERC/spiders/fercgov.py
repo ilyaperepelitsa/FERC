@@ -284,6 +284,16 @@ class FercgovSpider(scrapy.Spider):
 
             # yield {"pew2" : columns}
             # yield {"pew2" : column2}
+
+            #### GOOD FOR LAST TABLES
+            # //table[not(.//table) and .//td and .//font and count(.//td)>1]
+
+            ### GOOD FOR BASIC INFO
+            # //tbody/tr[.//font and not(.//table) and .//td[@bgcolor = "silver"] and ./td[not(.//b)]]
+
+            # //tbody/tr[.//font and not(.//table) and .//td[@bgcolor = "silver"] and .//*[not(.//b)]]
+            //tbody/tr[descendant::*[not(name() = "b")]]
+
             yield {"pew2" : itemdata}
             # yield {"pew2" : itemdata["info_link"]}
 
