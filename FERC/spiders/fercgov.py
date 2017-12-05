@@ -181,102 +181,113 @@ class FercgovSpider(scrapy.Spider):
         page_rows = response.xpath('//tr[@bgcolor and not(@bgcolor="navy")]').extract()
         # page_rows = response.xpath('//tr[@bgcolor and not(@bgcolor="navy")]')
         for row in page_rows:
+
+            itemdata = {}
+
             sel = Selector(text = row)
             # row_response = HtmlResponse(url = "none", body=row)
             columns = sel.xpath('body/tr/td').extract()
 
             ## SUBMITTAL/ISSUANCE + #
             sel2 = Selector(text = columns[0])
-            text_pew = sel2.xpath("//*[not(name()='a')]/text()").extract()
-            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
-            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
+            column1 = sel2.xpath("//*[not(name()='a')]/text()").extract()
+            column1 = [element.replace("\r", "") for element in column1 if element.replace("\r", "") != ""]
+            column1 = [element.replace("\n", "") for element in column1 if element.replace("\n", "") != ""]
+            itemdata["action_category"] = column1[0]
+            itemdata["action_accession"] = column1[1]
 
-            ## SUBMITTAL/ISSUANCE DOCUMENT COMPONENTS LINK
-            ##################### USELESS - SAME INFO IS CONTAINED ELSEWHERE
-            sel2 = Selector(text = columns[0])
-            text_pew = sel2.xpath("//a/@href").extract()
-            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
-            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
 
             ## DOC DATE / PUBLISH DATE
             sel2 = Selector(text = columns[1])
-            text_pew = sel2.xpath("//text()").extract()
-            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
-            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
-            text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
-
+            column2 = sel2.xpath("//text()").extract()
+            column2 = [element.replace("\r", "") for element in column2 if element.replace("\r", "") != ""]
+            column2 = [element.replace("\n", "") for element in column2 if element.replace("\n", "") != ""]
+            column2 = [element.replace("\t", "") for element in column2 if element.replace("\t", "") != ""]
+            itemdata["date_doc"] = column2[0]
+            itemdata["date_publish"] = column2[1]
+            #
             ## DOCKET NUMBER / NUMBERS
             sel2 = Selector(text = columns[2])
-            text_pew = sel2.xpath("//*[not(name()='a')]/text()").extract()
-            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
-            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
-            text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+            column3 = sel2.xpath("//*[not(name()='a')]/text()").extract()
+            column3 = [element.replace("\r", "") for element in column3 if element.replace("\r", "") != ""]
+            column3 = [element.replace("\n", "") for element in column3 if element.replace("\n", "") != ""]
+            column3 = [element.replace("\t", "") for element in column3 if element.replace("\t", "") != ""]
+            if len(column3) == 1:
+                itemdata["docket_numbers"] = column3[0]
+            else:
+                itemdata["docket_numbers"] = column3
 
             ## DESCRIPTION
             sel2 = Selector(text = columns[3])
-            text_pew = sel2.xpath("//text()").extract()
-            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
-            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
-            text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
-            text_pew = text_pew[0]
+            column4 = sel2.xpath("//text()").extract()
+            column4 = [element.replace("\r", "") for element in column4 if element.replace("\r", "") != ""]
+            column4 = [element.replace("\n", "") for element in column4 if element.replace("\n", "") != ""]
+            column4 = [element.replace("\t", "") for element in column4 if element.replace("\t", "") != ""]
+            itemdata["description"] = column4[0]
+            itemdata["availability"] = column4[1].split("Availability:")[-1].strip()
 
-            ## AVAILABILITY - ONLY PUBLIC ARE DOWNLOADABLE
-            sel2 = Selector(text = columns[3])
-            text_pew = sel2.xpath("//text()").extract()
-            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
-            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
-            text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
-            text_pew = text_pew[1]
-
-            ## CLASS 
+            #
+            ## CLASS
             sel2 = Selector(text = columns[4])
-            text_pew = sel2.xpath("//text()").extract()
-            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
-            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
-            text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
-            text_pew = text_pew[0]
-
-            ## TYPE
-            sel2 = Selector(text = columns[4])
-            text_pew = sel2.xpath("//text()").extract()
-            text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
-            text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
-            text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
-            text_pew = text_pew[1]
+            column5 = sel2.xpath("//text()").extract()
+            column5 = [element.replace("\r", "") for element in column5 if element.replace("\r", "") != ""]
+            column5 = [element.replace("\n", "") for element in column5 if element.replace("\n", "") != ""]
+            column5 = [element.replace("\t", "") for element in column5 if element.replace("\t", "") != ""]
+            itemdata["class"] = column5[0]
+            itemdata["type"] = column5[1]
+            #
+            # ## TYPE
+            # sel2 = Selector(text = columns[4])
+            # text_pew = sel2.xpath("//text()").extract()
+            # text_pew = [element.replace("\r", "") for element in text_pew if element.replace("\r", "") != ""]
+            # text_pew = [element.replace("\n", "") for element in text_pew if element.replace("\n", "") != ""]
+            # text_pew = [element.replace("\t", "") for element in text_pew if element.replace("\t", "") != ""]
+            # text_pew = text_pew[1]
             # #
             # #
             # #PDF AND EXCEL LINKS - NAMES
             # sel2 = Selector(text = columns[5])
             # text_pew = sel2.xpath("//a/text()").extract()
-            # text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
-            # text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
-            # text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+            # text_pew = [element.replace("\r", "") for element in text_pew if element.replace("\r", "") != ""]
+            # text_pew = [element.replace("\n", "") for element in text_pew if element.replace("\n", "") != ""]
+            # text_pew = [element.replace("\t", "") for element in text_pew if element.replace("\t", "") != ""]
             #
             # #PDF AND EXCEL LINKS - LINKS
             # sel2 = Selector(text = columns[5])
             # text_pew = sel2.xpath("//a/@href").extract()
-            # text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
-            # text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
-            # text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+            # text_pew = [element.replace("\r", "") for element in text_pew if element.replace("\r", "") != ""]
+            # text_pew = [element.replace("\n", "") for element in text_pew if element.replace("\n", "") != ""]
+            # text_pew = [element.replace("\t", "") for element in text_pew if element.replace("\t", "") != ""]
             # #
-            # ## FILE AND INFO TEXT
+            ## FILE AND INFO TEXT
+            sel2 = Selector(text = columns[6])
+            column6_text = sel2.xpath("//a/text()").extract()
+            column6_text = [element.replace("\r", "") for element in column6_text if element.replace("\r", "") != ""]
+            column6_text = [element.replace("\n", "") for element in column6_text if element.replace("\n", "") != ""]
+            column6_text = [element.replace("\t", "") for element in column6_text if element.replace("\t", "") != ""]
+
+            # #
+            ## FILE AND INFO LINKS
             # sel2 = Selector(text = columns[6])
-            # text_pew = sel2.xpath("//a/text()").extract()
-            # text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
-            # text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
-            # text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
-            #
-            # ## FILE AND INFO LINKS
-            # sel2 = Selector(text = columns[6])
-            # text_pew = sel2.xpath("//a/@href").extract()
-            # text_pew = [texty.replace("\r", "") for texty in text_pew if texty.replace("\r", "") != ""]
-            # text_pew = [texty.replace("\n", "") for texty in text_pew if texty.replace("\n", "") != ""]
-            # text_pew = [texty.replace("\t", "") for texty in text_pew if texty.replace("\t", "") != ""]
+            column6_link = sel2.xpath("//a/@href").extract()
+            column6_link = [element.replace("\r", "") for element in column6_link if element.replace("\r", "") != ""]
+            column6_link = [element.replace("\n", "") for element in column6_link if element.replace("\n", "") != ""]
+            column6_link = [element.replace("\t", "") for element in column6_link if element.replace("\t", "") != ""]
+            column6_link = ["https://elibrary.ferc.gov/idmws/search/" + str(element) for element in column6_link]
+
+            links_and_text = list(zip(column6_text, column6_link))
+            for element in links_and_text:
+                itemdata[str(element[0]).lower() + "_link"] = element[1]
+            # itemdata["links"] = links_and_text
             #
 
 
             # yield {"pew2" : columns}
-            yield {"pew2" : text_pew}
+            # yield {"pew2" : column2}
+            yield {"pew2" : itemdata}
+            # yield {"pew2" : itemdata["info_link"]}
+
+
             # yield {"pew2" : len(columns)}
 
 
