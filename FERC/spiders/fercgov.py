@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import uuid
+
 import scrapy
 from scrapy.http import FormRequest
 from scrapy.utils.response import open_in_browser
@@ -25,6 +27,34 @@ class FercgovSpider(scrapy.Spider):
     # dockets = []
     # search = "pipeline"
     search = ""
+
+    script = """
+    function main(splash, args)
+
+        function wait_to_load(time)
+            local initial_check = true
+            local initial_html = splash:html()
+
+            while initial_check do
+                assert(splash:wait(time))
+                local new_html = splash:html()
+                if (initial_html == new_html) then
+                    initial_check = false
+                else
+                    initial_html = new_html
+                end
+            end
+        end
+
+        wait_to_load(5)
+
+        assert(splash:wait(30))
+        return {
+        html = splash:html()
+        }
+
+    end
+    """
 
 
     def parse(self, response):
@@ -278,23 +308,27 @@ class FercgovSpider(scrapy.Spider):
             links_and_text = list(zip(column6_text, column6_link))
             for element in links_and_text:
                 itemdata[str(element[0]).lower() + "_link"] = element[1]
-            # itemdata["links"] = links_and_text
-            #
+
+            itemdata["splash"] = {'args': {'lua_source': self.script, 'html' : 1, 'endpoint': 'execute'}}
+
+            # yield scrapy.Request(response.url, self.parse_next_page, meta={
+            #     'splash': {
+            #         'args': {
+            #             'lua_source': self.script,
+            #             'html': 7},
+            #         'endpoint': 'execute'}}, dont_filter=True)
+
+            info_request = scrapy.Request(itemdata["info_link"],
+                                            callback = self.parse_info,
+                                            meta = itemdata, dont_filter = True)
+            # yield info_request
 
 
-            # yield {"pew2" : columns}
-            # yield {"pew2" : column2}
-
-            #### GOOD FOR LAST TABLES
-            # //table[not(.//table) and .//td and .//font and count(.//td)>1]
-
-            ### GOOD FOR BASIC INFO
-            # //tbody/tr[.//font and not(.//table) and .//td[@bgcolor = "silver"] and ./td[not(.//b)]]
 
             # //tbody/tr[.//font and not(.//table) and .//td[@bgcolor = "silver"] and .//*[not(.//b)]]
-            //tbody/tr[descendant::*[not(name() = "b")]]
+            # //tbody/tr[descendant::*[not(name() = "b")]]
 
-            yield {"pew2" : itemdata}
+            yield {"pew2" : itemdata["splash"]}
             # yield {"pew2" : itemdata["info_link"]}
 
 
@@ -409,6 +443,33 @@ class FercgovSpider(scrapy.Spider):
             new_query.meta["DocsLimit"] = str(docslimit)
 
             yield new_query
+
+    def parse_info(self, response):
+
+        #### GOOD FOR LAST TABLES
+        bottob_tables_xpath = '//table[not(.//table) and .//td and .//font and count(.//td)>1 and .//td[@bgcolor = "silver"]]'
+
+        # LAST TABLES WITH TABLE NAME
+        bottob_tables_full_xpath = '//td[not(.//table//table) and .//td and .//font and count(.//td)>1 and .//td[@bgcolor = "silver"]]/text()'
+
+        ### GOOD FOR BASIC INFO
+        basic_info_table_xpath = '//tbody/tr[.//font and not(.//table) and .//td[@bgcolor = "silver"] and ./td[not(.//b)]]'
+
+        ### GOOD FOR BORDERLESS TABLES WITH LIB AND TYPE
+        borderless_tables_xpath = '//td[.//table[.//td and .//font and not(.//td[@bgcolor = "silver"])] and count(.//table)<10]'
+
+        pewpew = response.xpath(bottob_tables_xpath).extract()
+
+        # yield {"pew" : response.meta}
+        # filename = uuid.uuid4()
+        #
+        # with open('/Users/ilyaperepelitsa/quant/' + str(filename) + ".json", "w") as f:
+        #     f.write(response)
+        # yield {"pew" : dir(response)}
+        yield {"pew" : response.body}
+        # open_in_browser(response)
+
+
         # yield({"pew" : dir(self)})
         # yield {"pew" : self.doccoutner}
         # yield {"pew1" : self.docstart}
@@ -433,8 +494,3 @@ class FercgovSpider(scrapy.Spider):
 
 
         # open_in_browser(response)
-
-# 15 + 167
-#
-# pew = ["pew", "pew2"]
-# {pewval : ["submittal", "issuance"] for pewval in pew}
