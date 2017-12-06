@@ -48,7 +48,6 @@ class FercgovSpider(scrapy.Spider):
 
         wait_to_load(5)
 
-        assert(splash:wait(30))
         return {
         html = splash:html()
         }
