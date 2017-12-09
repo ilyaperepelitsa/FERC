@@ -12,6 +12,8 @@ from scrapy.loader import ItemLoader
 # from scrapy.selector import HtmlXPathSelector
 from scrapy.selector import Selector
 from scrapy.http import HtmlResponse
+
+import re
 # for docket in dockets:
 
 class FercgovSpider(scrapy.Spider):
@@ -27,34 +29,6 @@ class FercgovSpider(scrapy.Spider):
     # dockets = []
     # search = "pipeline"
     search = ""
-
-    script = """
-    function main(splash, args)
-
-        function wait_to_load(time)
-            local initial_check = true
-            local initial_html = splash:html()
-
-            while initial_check do
-                assert(splash:wait(time))
-                local new_html = splash:html()
-                if (initial_html == new_html) then
-                    initial_check = false
-                else
-                    initial_html = new_html
-                end
-            end
-        end
-
-        wait_to_load(5)
-
-        return {
-        html = splash:html()
-        }
-
-    end
-    """
-
 
     def parse(self, response):
 
@@ -308,28 +282,13 @@ class FercgovSpider(scrapy.Spider):
             for element in links_and_text:
                 itemdata[str(element[0]).lower() + "_link"] = element[1]
 
-            itemdata["splash"] = {'args': {'lua_source': self.script, 'html' : 1, 'endpoint': 'execute'}}
+            info_query = FormRequest(url = "https://elibrary.ferc.gov/idmws/doc_info.asp",
+                formdata = {"doclist" : itemdata["info_link"].split("doclist=")[-1]},
+                callback=self.parse_info, dont_filter = True, meta = itemdata)
 
-            # yield scrapy.Request(response.url, self.parse_next_page, meta={
-            #     'splash': {
-            #         'args': {
-            #             'lua_source': self.script,
-            #             'html': 7},
-            #         'endpoint': 'execute'}}, dont_filter=True)
-
-            info_request = scrapy.Request(itemdata["info_link"],
-                                            callback = self.parse_info,
-                                            meta = itemdata, dont_filter = True)
-            # yield info_request
-
-
-
-            # //tbody/tr[.//font and not(.//table) and .//td[@bgcolor = "silver"] and .//*[not(.//b)]]
-            # //tbody/tr[descendant::*[not(name() = "b")]]
-
-            yield {"pew2" : itemdata["splash"]}
+            # yield {"pew2" : itemdata["info_link"].split("doclist=")[-1]}
             # yield {"pew2" : itemdata["info_link"]}
-
+            yield info_query
 
             # yield {"pew2" : len(columns)}
 
@@ -446,10 +405,10 @@ class FercgovSpider(scrapy.Spider):
     def parse_info(self, response):
 
         #### GOOD FOR LAST TABLES
-        bottob_tables_xpath = '//table[not(.//table) and .//td and .//font and count(.//td)>1 and .//td[@bgcolor = "silver"]]'
+        bottom_tables_xpath = '//table[not(.//table) and .//td and .//font and count(.//td)>1 and .//td[@bgcolor = "silver"]]'
 
         # LAST TABLES WITH TABLE NAME
-        bottob_tables_full_xpath = '//td[not(.//table//table) and .//td and .//font and count(.//td)>1 and .//td[@bgcolor = "silver"]]/text()'
+        bottom_tables_full_xpath = '//td[not(.//table//table) and .//td and .//font and count(.//td)>1 and .//td[@bgcolor = "silver"]]'
 
         ### GOOD FOR BASIC INFO
         basic_info_table_xpath = '//tbody/tr[.//font and not(.//table) and .//td[@bgcolor = "silver"] and ./td[not(.//b)]]'
@@ -457,7 +416,168 @@ class FercgovSpider(scrapy.Spider):
         ### GOOD FOR BORDERLESS TABLES WITH LIB AND TYPE
         borderless_tables_xpath = '//td[.//table[.//td and .//font and not(.//td[@bgcolor = "silver"])] and count(.//table)<10]'
 
-        pewpew = response.xpath(bottob_tables_xpath).extract()
+        bottom_tables = response.xpath(bottom_tables_full_xpath).extract()
+
+        document_class_type = []
+        document_child_list = []
+        document_parent_list = []
+        associated_numbers = []
+        docket_numbers = []
+        output_row = {}
+
+        for bottom_table in bottom_tables:
+            sel = Selector(text = bottom_table)
+            # row_response = HtmlResponse(url = "none", body=row)
+            extracted_rows = sel.xpath('//tr[not(.//tr)]').extract()
+            bottom_table_name = sel.xpath('//td//b//text()').extract()
+            bottom_table_name = [element.replace("\r", "") for element in bottom_table_name if element.replace("\r", "") != ""]
+            bottom_table_name = [element.replace("\n", "") for element in bottom_table_name if element.replace("\n", "") != ""]
+            bottom_table_name = [element.replace("\t", "") for element in bottom_table_name if element.replace("\t", "") != ""]
+            bottom_table_name = bottom_table_name[0]
+            bottom_table_name = bottom_table_name.replace(":", "").strip()
+            bottom_table_name = bottom_table_name.replace(" ", "_").upper()
+            table_column_labels = []
+
+            for position, row in enumerate(extracted_rows):
+                # sel2 = Selector(text = re.sub("\<table\>.+\<\/table\>", "", row))
+                sel2 = Selector(text = row)
+                # extracted_text = sel2.xpath('//td//text() | //td//a//text()').extract()
+                extracted_text = sel2.xpath('//td//text()').extract()
+                extracted_text = [element.replace("\r", "") for element in extracted_text]
+                extracted_text = [element.replace("\n", "") for element in extracted_text]
+                extracted_text = [element.replace("\t", "") for element in extracted_text]
+
+                # yield {"pew" : [response.meta["info_link"], len(extracted_text), extracted_text]}
+
+
+
+                if position == 0:
+                    table_column_labels = extracted_text
+                else:
+                    if bottom_table_name == "CORRESPONDENT":
+                        if len(extracted_text) == 5:
+                            # output_row["correspondent_type"] = bottom_table_name + "_" + extracted_text[0]
+                            first_name = extracted_text[2]
+                            middle_name = extracted_text[3]
+                            last_name = extracted_text[1]
+                            name_component_list = [first_name, middle_name, last_name]
+                            for component_position, name_component in enumerate(name_component_list):
+                                if name_component == "x":
+                                    name_component_list[component_position] = "*"
+                            full_name = ' '.join(map(str, name_component_list))
+                            full_name = full_name.replace("* ", "").replace("*", "").strip()
+
+                            name_column_label = bottom_table_name + "_" + extracted_text[0]  + "_NAME"
+                            name_column_label = str(name_column_label).lower()
+
+                            org_column_label = bottom_table_name + "_" + extracted_text[0]  + "_ORGANIZATION"
+                            org_column_label = str(org_column_label).lower()
+
+                            output_row[name_column_label] = full_name.upper()
+                            output_row[org_column_label] = extracted_text[4]
+                        else:
+                            output_row["correspondent_type"] = bottom_table_name + "_" + extracted_text[0]
+                            name_component_list = extracted_text[1:-1]
+                            for component_position, name_component in enumerate(name_component_list):
+                                if name_component == "x":
+                                    name_component_list[component_position] = "*"
+                            full_name = ' '.join(map(str, name_component_list))
+                            full_name = full_name.replace("* ", "").replace("*", "").strip()
+
+                            name_column_label = bottom_table_name + "_" + extracted_text[0]  + "_NAME"
+                            name_column_label = str(name_column_label).lower()
+
+                            org_column_label = bottom_table_name + "_" + extracted_text[0]  + "_ORGANIZATION"
+                            org_column_label = str(org_column_label).lower()
+
+                            output_row[name_column_label] = full_name.upper()
+                            output_row[org_column_label] = extracted_text[-1]
+
+                    if bottom_table_name == "DOCUMENT_TYPE":
+                        class_type_row = extracted_text[0] + " - " + extracted_text[1]
+                        document_class_type.append(class_type_row)
+
+                    if bottom_table_name in ["PARENT_DOCUMENTS", "CHILD_DOCUMENTS"]:
+                        extracted_text = [element for element in extracted_text if element != ""]
+                        # parent_child_labels = list(map(lambda x: bottom_table_name.split("_")[0].lower() + "_" + x, table_column_labels))
+
+                        if bottom_table_name.split("_")[0].lower() == "parent":
+                            document_parent_list.append(" - ".join(extracted_text))
+                        elif bottom_table_name.split("_")[0].lower() == "child":
+                            document_child_list.append(" - ".join(extracted_text))
+
+                    if bottom_table_name == "ASSOCIATED_NUMBERS":
+                        extracted_text = [element for element in extracted_text if element != ""]
+                        associated_numbers_row = " - ".join(extracted_text)
+                        associated_numbers.append(associated_numbers_row)
+
+                    if bottom_table_name == "DOCKET_NUMBERS":
+                        extracted_text = [element for element in extracted_text if element != ""]
+
+                        docket_numbers_row = "-".join(extracted_text[0:-1])
+                        docket_numbers_row = " : ".join([docket_numbers_row, extracted_text[-1]])
+                        docket_numbers.append(docket_numbers_row)
+                    # if bottom_table_name not in ["DOCKET_NUMBERS", "ASSOCIATED_NUMBERS",
+                    #         "PARENT_DOCUMENTS", "CHILD_DOCUMENTS", "DOCUMENT_TYPE", "CORRESPONDENT"]:
+
+
+
+                        # yield {"pew" : [response.meta["info_link"], bottom_table_name]}
+
+
+
+            # yield {"pew" : [response.meta["info_link"], bottom_table_name]}
+        document_class_type = ", ".join(document_class_type)
+        document_parent_list = ", ".join(document_parent_list)
+        document_child_list = ", ".join(document_child_list)
+        associated_numbers = ", ".join(associated_numbers)
+        docket_numbers = ", ".join(docket_numbers)
+
+        output_row["document_class_type"] = document_class_type
+        output_row["document_child_list"] = document_child_list
+        output_row["document_parent_list"] = document_parent_list
+        output_row["associated_numbers"] = associated_numbers
+        output_row["docket_numbers"] = docket_numbers
+
+
+        borderless_tables = response.xpath(borderless_tables_xpath).extract()
+
+        for borderless_table in borderless_tables:
+            sel = Selector(text = borderless_table)
+            # row_response = HtmlResponse(url = "none", body=row)
+            borderless_table_name = sel.xpath('//b//text()').extract()
+            borderless_table_content = sel.xpath('//tr//text()').extract()
+
+            yield {"pew" : [response.meta["info_link"], borderless_table_name, borderless_table_content]}
+
+            borderless_table_name = [element.replace("\r", "") for element in borderless_table_name if element.replace("\r", "") != ""]
+            borderless_table_name = [element.replace("\n", "") for element in borderless_table_name if element.replace("\n", "") != ""]
+            borderless_table_name = [element.replace("\t", "") for element in borderless_table_name if element.replace("\t", "") != ""]
+
+            borderless_table_content = [element.replace("\r", "") for element in borderless_table_content if element.replace("\r", "") != ""]
+            borderless_table_content = [element.replace("\n", "") for element in borderless_table_content if element.replace("\n", "") != ""]
+            borderless_table_content = [element.replace("\t", "") for element in borderless_table_content if element.replace("\t", "") != ""]
+
+
+
+        basic_info_rows = response.xpath(basic_info_table_xpath).extract()
+
+        for basic_info_row in basic_info_rows:
+            sel = Selector(text = basic_info_row)
+            # row_response = HtmlResponse(url = "none", body=row)
+            basic_info_entry = sel.xpath('/td//text()').extract()
+            borderless_table_content = sel.xpath('//tr//text()').extract()
+
+            
+        # yield {"pew" : [response.meta["info_link"], len(document_class_type)]}
+        # yield {"pew" : [response.meta["info_link"], output_row]}
+        # yield {"pew" : [response.meta["info_link"], output_row["docket_numbers"]]}
+        # yield {"pew" : [response.meta["info_link"], len(output_row["document_class_type"].split(","))]}
+
+
+            # yield {"pew" : [response.meta["info_link"], bottom_table_name]}
+                        # yield {"pew" : extracted_text}
+
 
         # yield {"pew" : response.meta}
         # filename = uuid.uuid4()
@@ -465,7 +585,7 @@ class FercgovSpider(scrapy.Spider):
         # with open('/Users/ilyaperepelitsa/quant/' + str(filename) + ".json", "w") as f:
         #     f.write(response)
         # yield {"pew" : dir(response)}
-        yield {"pew" : response.body}
+        # yield {"pew" : len(pewpew)}
         # open_in_browser(response)
 
 
@@ -489,7 +609,11 @@ class FercgovSpider(scrapy.Spider):
         # yield {"pew2" : [len(page_rows), docket, docstart, doccounter]}
 
 
-
-
-
+pewpew = ["a", "b", "c"]
+pew2 = "-".join(pewpew[0:-1])
+" - ".join([pew2, pewpew[-1]])
         # open_in_browser(response)
+
+# stringy = """<td colspan="4">\r\n\t<table width="500" cellpadding="2" align="center" border="1">\r\n\t\t<font face="arial" size="2"><b><u>Parent Documents: </u></b>\r\n\t\t<tr>\r\n\t\t<td width="150" bgcolor="silver"><font face="ARIAL" size="2"><b>Accession Number: </b></font></td>\r\n\t\t<td bgcolor="silver"><font face="ARIAL" size="2"><b>Description: </b></font></td>\r\n\t\t</tr>\r\n\t\t<tr>\r\n\t\t<td width="150"><font face="ARIAL" size="2">\r\n\t\t<a href="doc_info.asp?document_id=14621180">20171120-0015</a>\r\n\t\t</font>\r\n\t\t</td>\r\n\t\t<td><font face="ARIAL" size="2">The State of New York Office of the Attorney General submits three copies of the "Petition for Review of Two FERC Orders" with Exhibits A and B etc. under CP16-17. Part 1 of 6</font></td>\r\n\t\t</tr>\r\n\t</font></table>\r\n\t<br>\r\n\t\r\n\r\n</td>"""
+#
+# re.sub("\<table\>(.+)\<\/table\>", "", stringy)
