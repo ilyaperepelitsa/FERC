@@ -14,9 +14,74 @@ from scrapy.selector import Selector
 from scrapy.http import HtmlResponse
 
 import re
-# for docket in dockets:
+
 
 class FercgovSpider(scrapy.Spider):
+    """
+    Variables___________________
+
+    GENERAL WARNING ABOUT docstart, docslimit, doccounter:
+            empirically it was discovered that the server can produce
+            more than 200 in search results. 200 is very stable though
+            and this scraper has a replicated (reverse-engineered) way
+            that the server increments its counters for "next pages".
+
+    FORMATTING OF VARIABLES THAT NEED TO BE CHANGED:
+            If you're not familiar with Python syntax, all options are provided
+            below. If you need to use a list for dockets - there is an example
+            of how to pass a list. If you want no dockets specified, uncomment
+            the line that has an empty list (delete the "#" symbol at the line start).
+            Please use those particular formats. Make sure that both "dockets"
+            and "search" variables are declared (at least one of the provided
+            formatting options is uncommented and filled with the search data
+            that you want).
+
+
+
+    +++ Variables that can't be changed:
+            - name: scraper name that is called by [scrapy crawl] command.
+                    cd into this project directory (FERC) and TYPE
+                    "scrapy crawl fercgov" to start the scrapers
+
+            - allowed_domains: only pages that have their url contain this
+                    domain are considered as appropriate [response]. Generated
+                    automatically by scrapy. If changed, none of the returned
+                    pages will be processed
+
+            - start_urls: url that requests are sent to. FERC has a very unique
+                    way of displaying pages. In order to see any new page this
+                    scraper sends HTTP POST requests to the FERC server.
+
+            - docstart: first document to be contained in output in the search
+                    results
+
+            - doccounter: increment the "next page" requests and get this many
+                    of next documents
+
+            - docslimit: last document to be contained in output in the search
+                    results
+
+    +++ Variables that need to be changed according to your needs:
+            - dockets: list of dockets to be searched. Has to be a list regardless
+                    of the number of dockets (whether it's many dockets written
+                    as a list of strings or no specific docket written as an
+                    empty list).
+
+                    Acceptable formats:
+                    ["########", "########"] - search for many dockets in separate
+                            queries
+                    ["########"] - search one docket
+                    [] - docket not specified (search by text instead)
+
+            - search: string containing the word/phrase to search by.
+
+                    Acceptable formats:
+                    "########" - search for a string pattern either alongside
+                            specific dockets or by itself
+                    "" - don't include a string in the query. Requires having one
+                            or more dockets
+    """
+
     name = "fercgov"
     allowed_domains = ["elibrary.ferc.gov"]
     start_urls = ['https://elibrary.ferc.gov/idmws/search/fercgensearch.asp']
@@ -32,168 +97,110 @@ class FercgovSpider(scrapy.Spider):
 
     def parse(self, response):
 
+        # If the docket list isn't empty
         if len(self.dockets) > 0:
 
+            # For each docket generate a new search request
             for docket in self.dockets:
 
+                # Query request declared with all the search data
+                # formdata includes the data that FERC server accepts
                 query = FormRequest.from_response(response,
-                                        # formdata = {
-                                        #             # "FROMdt" : "",
-                                        #             # "TOdt" : "",
-                                        #             "firstDt" : "1/1/1904",
-                                        #             "LastDt" : "12/31/2037",
-                                        #             "DocsStart" : str(self.docstart),
-                                        #             "DocsLimit" : str(self.docslimit),
-                                        #             # "SortSpec" : "filed_date desc accession_num asc",
-                                        #             # "datefield" : "filed_date",
-                                        #             # "dFROM" : "10/08/2017",
-                                        #             # "dTO" : "11/08/2017",
-                                        #             # "dYEAR" : "1",
-                                        #             # "dMONTH" : "1",
-                                        #             # "dDAY" : "1",
-                                        #             "date" : "All",
-                                        #             # "NotCategories" : "submittal,issuance",
-                                        #             "category" : "submittal,issuance",
-                                        #             # "category" : "submittal",
-                                        #             # "category" : "issuance",
-                                        #             "libraryall" : "electric, hydro, gas, rulemaking, oil, general",
-                                        #             "docket" : str(docket),
-                                        #             "subdock_radio" : "all_subdockets",
-                                        #             # "class" : "999",
-                                        #             # "type" : "999",
-                                        #             "textsearch" : str(self.search),
-                                        #             "description" : "description",
-                                        #             "fulltext" : "fulltext",
-                                        #             "DocsCount" : str(self.doccounter)},
-
-                                            formdata = {
-                                                        "FROMdt" : "",
-                                                        "TOdt" : "",
-                                                        "firstDt" : "1/1/1904",
-                                                        "LastDt" : "12/31/2037",
-                                                        "DocsStart" : str(self.docstart),
-                                                        "DocsLimit" : str(self.docslimit),
-                                                        "SortSpec" : "filed_date desc accession_num asc",
-                                                        "datefield" : "filed_date",
-                                                        "dFROM" : "10/08/2017",
-                                                        "dTO" : "11/08/2017",
-                                                        "dYEAR" : "1",
-                                                        "dMONTH" : "1",
-                                                        "dDAY" : "1",
-                                                        "date" : "All",
-                                                        # "NotCategories" : "submittal,issuance",
-                                                        "category" : "submittal,issuance",
-                                                        # "category" : "submittal",
-                                                        # "category" : "issuance",
-                                                        "libraryall" : "electric, hydro, gas, rulemaking, oil, general",
-                                                        "docket" : str(docket),
-                                                        "subdock_radio" : "all_subdockets",
-                                                        "class" : "999",
-                                                        "type" : "999",
-                                                        "textsearch" : str(self.search),
-                                                        "description" : "description",
-                                                        "fulltext" : "fulltext",
-                                                        "DocsCount" : str(self.doccounter)},
-                                        # clickdata={'name': 'commit'},
-                                        callback=self.parse_query, dont_filter = True)
+                    formdata = {
+                                "FROMdt" : "",
+                                "TOdt" : "",
+                                "firstDt" : "1/1/1904",
+                                "LastDt" : "12/31/2037",
+                                "DocsStart" : str(self.docstart),
+                                "DocsLimit" : str(self.docslimit),
+                                "SortSpec" : "filed_date desc accession_num asc",
+                                "datefield" : "filed_date",
+                                "dFROM" : "10/08/2017",
+                                "dTO" : "11/08/2017",
+                                "dYEAR" : "1",
+                                "dMONTH" : "1",
+                                "dDAY" : "1",
+                                "date" : "All",
+                                "category" : "submittal,issuance",
+                                "libraryall" : "electric, hydro, gas, rulemaking, oil, general",
+                                "docket" : str(docket),
+                                "subdock_radio" : "all_subdockets",
+                                "class" : "999",
+                                "type" : "999",
+                                "textsearch" : str(self.search),
+                                "description" : "description",
+                                "fulltext" : "fulltext",
+                                "DocsCount" : str(self.doccounter)},
+                callback=self.parse_query, dont_filter = True)
+                # pass the relevant form data to the query for parsing next pages
+                # and generating new queries
                 query.meta["DocsStart"] = str(self.docstart)
                 query.meta["docket"] = str(docket)
                 query.meta["textsearch"] = str(self.search)
                 query.meta["DocsCount"] = str(self.doccounter)
                 query.meta["DocsLimit"] = str(self.docslimit)
-
+                # query posted to the server
                 yield query
-                # open_in_browser(response)
+        # If the docket list is empty
         else:
-
-
+            # Query request declared with all the search data
+            # formdata includes the data that FERC server accepts
+            # since the docket is not passed, text search field is used
             query = FormRequest.from_response(response,
-                                    # formdata = {
-                                    #             # "FROMdt" : "",
-                                    #             # "TOdt" : "",
-                                    #             "firstDt" : "1/1/1904",
-                                    #             "LastDt" : "12/31/2037",
-                                    #             "DocsStart" : str(self.docstart),
-                                    #             "DocsLimit" : str(self.docslimit),
-                                    #             # "SortSpec" : "filed_date desc accession_num asc",
-                                    #             # "datefield" : "filed_date",
-                                    #             # "dFROM" : "10/08/2017",
-                                    #             # "dTO" : "11/08/2017",
-                                    #             # "dYEAR" : "1",
-                                    #             # "dMONTH" : "1",
-                                    #             # "dDAY" : "1",
-                                    #             "date" : "All",
-                                    #             # "NotCategories" : "submittal,issuance",
-                                    #             "category" : "submittal,issuance",
-                                    #             # "category" : "submittal",
-                                    #             # "category" : "issuance",
-                                    #             "libraryall" : "electric, hydro, gas, rulemaking, oil, general",
-                                    #             "docket" : "",
-                                    #             "subdock_radio" : "all_subdockets",
-                                    #             # "class" : "999",
-                                    #             # "type" : "999",
-                                    #             "textsearch" : str(self.search),
-                                    #             "description" : "description",
-                                    #             "fulltext" : "fulltext",
-                                    #             "DocsCount" : str(self.doccounter)},
-
-                                    formdata = {
-                                                "FROMdt" : "",
-                                                "TOdt" : "",
-                                                "firstDt" : "1/1/1904",
-                                                "LastDt" : "12/31/2037",
-                                                "DocsStart" : str(self.docstart),
-                                                "DocsLimit" : str(self.docslimit),
-                                                "SortSpec" : "filed_date desc accession_num asc",
-                                                "datefield" : "filed_date",
-                                                "dFROM" : "10/08/2017",
-                                                "dTO" : "11/08/2017",
-                                                "dYEAR" : "1",
-                                                "dMONTH" : "1",
-                                                "dDAY" : "1",
-                                                "date" : "All",
-                                                # "NotCategories" : "submittal,issuance",
-                                                "category" : "submittal,issuance",
-                                                # "category" : "submittal",
-                                                # "category" : "issuance",
-                                                "libraryall" : "electric, hydro, gas, rulemaking, oil, general",
-                                                "docket" : "",
-                                                "subdock_radio" : "all_subdockets",
-                                                "class" : "999",
-                                                "type" : "999",
-                                                "textsearch" : str(self.search),
-                                                "description" : "description",
-                                                "fulltext" : "fulltext",
-                                                "DocsCount" : str(self.doccounter)},
-                                    # clickdata={'name': 'commit'},
-                                    callback=self.parse_query, dont_filter = True)
+                    formdata = {
+                                "FROMdt" : "",
+                                "TOdt" : "",
+                                "firstDt" : "1/1/1904",
+                                "LastDt" : "12/31/2037",
+                                "DocsStart" : str(self.docstart),
+                                "DocsLimit" : str(self.docslimit),
+                                "SortSpec" : "filed_date desc accession_num asc",
+                                "datefield" : "filed_date",
+                                "dFROM" : "10/08/2017",
+                                "dTO" : "11/08/2017",
+                                "dYEAR" : "1",
+                                "dMONTH" : "1",
+                                "dDAY" : "1",
+                                "date" : "All",
+                                "category" : "submittal,issuance",
+                                "libraryall" : "electric, hydro, gas, rulemaking, oil, general",
+                                "docket" : "",
+                                "subdock_radio" : "all_subdockets",
+                                "class" : "999",
+                                "type" : "999",
+                                "textsearch" : str(self.search),
+                                "description" : "description",
+                                "fulltext" : "fulltext",
+                                "DocsCount" : str(self.doccounter)},
+                    callback=self.parse_query, dont_filter = True)
+            # pass the relevant form data to the query for parsing next pages
+            # and generating new queries
             query.meta["DocsStart"] = str(self.docstart)
             query.meta["docket"] = ""
             query.meta["textsearch"] = str(self.search)
             query.meta["DocsCount"] = str(self.doccounter)
             query.meta["DocsLimit"] = str(self.docslimit)
-
+            # query posted to the server
             yield query
-            # open_in_browser(response)
-        # pass
 
     def parse_query(self, response):
-
-        # open_in_browser(response)
-        # hxs = HtmlXPathSelector(response)
+        # Extract all the rows that the search results return
+        # output rows are not styled and it's the easiest way to identfy them
         page_rows = response.xpath('//tr[@bgcolor and not(@bgcolor="navy")]').extract()
-        # page_rows = response.xpath('//tr[@bgcolor and not(@bgcolor="navy")]')
+        # Each row contains both meta data and urls for new requests
         for row in page_rows:
-
+            # Each observation is an item. Item data is populated in a dictionary
             itemdata = {}
-
+            # New selector is declared to select columns for each row
             sel = Selector(text = row)
-            # row_response = HtmlResponse(url = "none", body=row)
+            # Use the selector to extract columns (<td>)
             columns = sel.xpath('body/tr/td').extract()
 
             ## SUBMITTAL/ISSUANCE + #
             sel2 = Selector(text = columns[0])
+            # Select the text of any descendant except the link tags
             column1 = sel2.xpath("//*[not(name()='a')]/text()").extract()
+            # Replace the new lines and other white space
             column1 = [element.replace("\r", "") for element in column1 if element.replace("\r", "") != ""]
             column1 = [element.replace("\n", "") for element in column1 if element.replace("\n", "") != ""]
             itemdata["action_category"] = column1[0]
@@ -202,7 +209,9 @@ class FercgovSpider(scrapy.Spider):
 
             ## DOC DATE / PUBLISH DATE
             sel2 = Selector(text = columns[1])
+            # Select all text descendants
             column2 = sel2.xpath("//text()").extract()
+            # Replace the new lines and other white space
             column2 = [element.replace("\r", "") for element in column2 if element.replace("\r", "") != ""]
             column2 = [element.replace("\n", "") for element in column2 if element.replace("\n", "") != ""]
             column2 = [element.replace("\t", "") for element in column2 if element.replace("\t", "") != ""]
@@ -211,7 +220,9 @@ class FercgovSpider(scrapy.Spider):
             #
             ## DOCKET NUMBER / NUMBERS
             sel2 = Selector(text = columns[2])
+            # Select the text of any descendant except the link tags
             column3 = sel2.xpath("//*[not(name()='a')]/text()").extract()
+            # Replace the new lines and other white space
             column3 = [element.replace("\r", "") for element in column3 if element.replace("\r", "") != ""]
             column3 = [element.replace("\n", "") for element in column3 if element.replace("\n", "") != ""]
             column3 = [element.replace("\t", "") for element in column3 if element.replace("\t", "") != ""]
@@ -222,7 +233,9 @@ class FercgovSpider(scrapy.Spider):
 
             ## DESCRIPTION
             sel2 = Selector(text = columns[3])
+            # Select all text descendants
             column4 = sel2.xpath("//text()").extract()
+            # Replace the new lines and other white space
             column4 = [element.replace("\r", "") for element in column4 if element.replace("\r", "") != ""]
             column4 = [element.replace("\n", "") for element in column4 if element.replace("\n", "") != ""]
             column4 = [element.replace("\t", "") for element in column4 if element.replace("\t", "") != ""]
@@ -232,47 +245,27 @@ class FercgovSpider(scrapy.Spider):
             #
             ## CLASS
             sel2 = Selector(text = columns[4])
+            # Select all text descendants
             column5 = sel2.xpath("//text()").extract()
+            # Replace the new lines and other white space
             column5 = [element.replace("\r", "") for element in column5 if element.replace("\r", "") != ""]
             column5 = [element.replace("\n", "") for element in column5 if element.replace("\n", "") != ""]
             column5 = [element.replace("\t", "") for element in column5 if element.replace("\t", "") != ""]
             itemdata["class"] = column5[0]
             itemdata["type"] = column5[1]
-            #
-            # ## TYPE
-            # sel2 = Selector(text = columns[4])
-            # text_pew = sel2.xpath("//text()").extract()
-            # text_pew = [element.replace("\r", "") for element in text_pew if element.replace("\r", "") != ""]
-            # text_pew = [element.replace("\n", "") for element in text_pew if element.replace("\n", "") != ""]
-            # text_pew = [element.replace("\t", "") for element in text_pew if element.replace("\t", "") != ""]
-            # text_pew = text_pew[1]
-            # #
-            # #
-            # #PDF AND EXCEL LINKS - NAMES
-            # sel2 = Selector(text = columns[5])
-            # text_pew = sel2.xpath("//a/text()").extract()
-            # text_pew = [element.replace("\r", "") for element in text_pew if element.replace("\r", "") != ""]
-            # text_pew = [element.replace("\n", "") for element in text_pew if element.replace("\n", "") != ""]
-            # text_pew = [element.replace("\t", "") for element in text_pew if element.replace("\t", "") != ""]
-            #
-            # #PDF AND EXCEL LINKS - LINKS
-            # sel2 = Selector(text = columns[5])
-            # text_pew = sel2.xpath("//a/@href").extract()
-            # text_pew = [element.replace("\r", "") for element in text_pew if element.replace("\r", "") != ""]
-            # text_pew = [element.replace("\n", "") for element in text_pew if element.replace("\n", "") != ""]
-            # text_pew = [element.replace("\t", "") for element in text_pew if element.replace("\t", "") != ""]
-            # #
+
             ## FILE AND INFO TEXT
             sel2 = Selector(text = columns[6])
-            column6_text = sel2.xpath("//a/text()").extract()
+            column6_text = sel2.xpath("//a/text()").extract
+            # Replace the new lines and other white space
             column6_text = [element.replace("\r", "") for element in column6_text if element.replace("\r", "") != ""]
             column6_text = [element.replace("\n", "") for element in column6_text if element.replace("\n", "") != ""]
             column6_text = [element.replace("\t", "") for element in column6_text if element.replace("\t", "") != ""]
 
             # #
             ## FILE AND INFO LINKS
-            # sel2 = Selector(text = columns[6])
             column6_link = sel2.xpath("//a/@href").extract()
+            # Replace the new lines and other white space
             column6_link = [element.replace("\r", "") for element in column6_link if element.replace("\r", "") != ""]
             column6_link = [element.replace("\n", "") for element in column6_link if element.replace("\n", "") != ""]
             column6_link = [element.replace("\t", "") for element in column6_link if element.replace("\t", "") != ""]
@@ -282,142 +275,97 @@ class FercgovSpider(scrapy.Spider):
             for element in links_and_text:
                 itemdata[str(element[0]).lower() + "_link"] = element[1]
 
+            # Generate a request to the server for the document info page
+            # server accepts the doclist code in the form field
             info_query = FormRequest(url = "https://elibrary.ferc.gov/idmws/doc_info.asp",
                 formdata = {"doclist" : itemdata["info_link"].split("doclist=")[-1]},
                 callback=self.parse_info, dont_filter = True, meta = itemdata)
-
-            # yield {"pew2" : itemdata["info_link"].split("doclist=")[-1]}
-            # yield {"pew2" : itemdata["info_link"]}
             yield info_query
 
-            # yield {"pew2" : len(columns)}
 
-
-        # page_rows = response.xpath('//tr[@bgcolor and not(@bgcolor="navy")]').extract()
+        # Look for link to the "Next page" - the link itself isn't callable,
+        # however the new request will be generated to the search query server
+        # to replicate the following of such link in a browser
         next_pages = response.xpath('//a[text()="NextPage"]').extract()
 
+        # Inherit the meta data from the previous request for new request.
+        # Extract the numbers for what results to display and the query terms
+        # such as dockets and search string
         docstart = int(response.meta["DocsStart"])
         docket = response.meta["docket"]
         search = response.meta["textsearch"]
         doccounter = int(response.meta["DocsCount"])
         docslimit = int(response.meta["DocsLimit"])
 
-        # for row in page_rows:
-        #     columns = row.xpath('td').extract()
-        #     yield {"pew2" : columns[0]}
-            # yield {"pew2" : columns[0]}
-
-
-        # next_pages = LinkExtractor(allow=(),
-        #                 restrict_xpaths = '//a[text()="NextPage"]',
-        #                 unique = True).extract_links(response)
-
-        # next_page = [next_page.url for next_page in next_pages]
-        # next_page = [next_page.url for next_page in next_pages]
-
-        # yield({"pew" : len(page_rows)})
+        # If the "Next page" link is found
         if len(next_pages) > 0:
+            # Increment the nubmers for document counts so that unseen results
+            # are displayed.
             docstart += doccounter
             docslimit += doccounter
 
+            # Create a new request based on incremented and inhereted query
+            # parameters
             new_query = FormRequest(url="https://elibrary.ferc.gov/idmws/search/results.asp",
-                # formdata = {
-                #             "firstDt" : "1/1/1904",
-                #             "LastDt" : "12/31/2037",
-                #             "DocsStart" : str(docstart),
-                #             "DocsLimit" : str(docslimit),
-                #             "date" : "All",
-                #             "category" : "submittal,issuance",
-                #             "libraryall" : "electric, hydro, gas, rulemaking, oil, general",
-                #             "docket" : str(docket),
-                #             "textsearch" : search,
-                #             "subdock_radio" : "all_subdockets",
-                #             "DocsCount" : str(doccounter)},
-
-                formdata = {
-                            "FROMdt" : "",
-                            "TOdt" : "",
-                            "firstDt" : "1/1/1904",
-                            "LastDt" : "12/31/2037",
-                            "DocsStart" : str(docstart),
-                            "DocsLimit" : str(docslimit),
-                            "date" : "All",
-                            "SortSpec" : "filed_date desc accession_num asc",
-                            "datefield" : "filed_date",
-                            "dFROM" : "10/08/2017",
-                            "dTO" : "11/08/2017",
-                            "dYEAR" : "1",
-                            "dMONTH" : "1",
-                            "dDAY" : "1",
-                            "date" : "All",
-                            # "NotCategories" : "submittal,issuance",
-                            "category" : "submittal,issuance",
-                            # "category" : "submittal",
-                            # "category" : "issuance",
-                            "libraryall" : "electric, hydro, gas, rulemaking, oil, general",
-                            "docket" : str(docket),
-                            "subdock_radio" : "all_subdockets",
-                            "class" : "999",
-                            "type" : "999",
-                            "textsearch" : str(search),
-                            "description" : "description",
-                            "fulltext" : "fulltext",
-                            "DocsCount" : str(doccounter)},
-
-                # formdata = {
-                #             "FROMdt" : "",
-                #             "TOdt" : "",
-                #             "firstDt" : "1/1/1904",
-                #             "LastDt" : "12/31/2037",
-                #             "DocsStart" : str(docstart),
-                #             "DocsLimit" : "500",
-                #             "SortSpec" : "filed_date desc accession_num asc",
-                #             "datefield" : "filed_date",
-                #             "dFROM" : "10/08/2017",
-                #             "dTO" : "11/08/2017",
-                #             "dYEAR" : "1",
-                #             "dMONTH" : "1",
-                #             "dDAY" : "1",
-                #             "date" : "All",
-                #             "NotCategories" : "submittal,issuance",
-                #             "category" : "submittal,issuance",
-                #             "category" : "submittal",
-                #             "category" : "issuance",
-                #             "libraryall" : "electric, hydro, gas, rulemaking, oil, general",
-                #             "docket" : str(docket),
-                #             "subdock_radio" : "all_subdockets",
-                #             "class" : "999",
-                #             "type" : "999",
-                #             "textsearch" : "",
-                #             "description" : "description",
-                #             "fulltext" : "fulltext",
-                #             "DocsCount" : str(doccouter)},
-                # clickdata={'name': 'commit'},
-                callback=self.parse_query, dont_filter = True)
+                    formdata = {
+                                "FROMdt" : "",
+                                "TOdt" : "",
+                                "firstDt" : "1/1/1904",
+                                "LastDt" : "12/31/2037",
+                                "DocsStart" : str(docstart),
+                                "DocsLimit" : str(docslimit),
+                                "date" : "All",
+                                "SortSpec" : "filed_date desc accession_num asc",
+                                "datefield" : "filed_date",
+                                "dFROM" : "10/08/2017",
+                                "dTO" : "11/08/2017",
+                                "dYEAR" : "1",
+                                "dMONTH" : "1",
+                                "dDAY" : "1",
+                                "date" : "All",
+                                "category" : "submittal,issuance",
+                                "libraryall" : "electric, hydro, gas, rulemaking, oil, general",
+                                "docket" : str(docket),
+                                "subdock_radio" : "all_subdockets",
+                                "class" : "999",
+                                "type" : "999",
+                                "textsearch" : str(search),
+                                "description" : "description",
+                                "fulltext" : "fulltext",
+                                "DocsCount" : str(doccounter)},
+                    callback=self.parse_query, dont_filter = True)
+            # pass the relevant meta data for another loop of "Next page"
             new_query.meta["DocsStart"] = str(docstart)
             new_query.meta["docket"] = str(docket)
             new_query.meta["textsearch"] = str(search)
             new_query.meta["DocsCount"] = str(doccounter)
             new_query.meta["DocsLimit"] = str(docslimit)
-
+            # Issue the POST request to the server
             yield new_query
 
     def parse_info(self, response):
 
-        #### GOOD FOR LAST TABLES
+        #### Bottom tables in the Info page such as dockets, correspondents etc.
         bottom_tables_xpath = '//table[not(.//table) and .//td and .//font and count(.//td)>1 and .//td[@bgcolor = "silver"]]'
 
-        # LAST TABLES WITH TABLE NAME
+        #### Bottom tables in the Info page such as dockets, correspondents etc.
+        # Includes the table name so that tables are not parsed blindly (create
+        # a new field for each row) but a special formatting is applied to each
+        # kind of table by name
         bottom_tables_full_xpath = '//td[not(.//table//table) and .//td and .//font and count(.//td)>1 and .//td[@bgcolor = "silver"]]'
 
-        ### GOOD FOR BASIC INFO
+        ### Basic meta info however more detailed than the general query
         basic_info_table_xpath = '//tbody/tr[.//font and not(.//table) and .//td[@bgcolor = "silver"] and ./td[not(.//b)]]'
 
-        ### GOOD FOR BORDERLESS TABLES WITH LIB AND TYPE
+        ### Borderless tables in the info page that contain library data and
+        # category data
         borderless_tables_xpath = '//td[.//table[.//td and .//font and not(.//td[@bgcolor = "silver"])] and count(.//table)<10]'
 
+        # Start parsing the page with the most information-intensive tables
+        # Extract all the tables with their names
         bottom_tables = response.xpath(bottom_tables_full_xpath).extract()
 
+        # Declare lists to store data found in the tables
         document_class_type = []
         document_child_list = []
         document_parent_list = []
@@ -425,108 +373,170 @@ class FercgovSpider(scrapy.Spider):
         docket_numbers = []
         output_row = {}
 
+        # Iterate over each extracted table
         for bottom_table in bottom_tables:
+            # New selector is declared to select rows in each table
             sel = Selector(text = bottom_table)
-            # row_response = HtmlResponse(url = "none", body=row)
+            # Extract the rows and table name separately
             extracted_rows = sel.xpath('//tr[not(.//tr)]').extract()
             bottom_table_name = sel.xpath('//td//b//text()').extract()
+            # Replace the new lines and other white space
             bottom_table_name = [element.replace("\r", "") for element in bottom_table_name if element.replace("\r", "") != ""]
             bottom_table_name = [element.replace("\n", "") for element in bottom_table_name if element.replace("\n", "") != ""]
             bottom_table_name = [element.replace("\t", "") for element in bottom_table_name if element.replace("\t", "") != ""]
+            # Select the first occurance of bold text after irrelevant
+            # data was dropped or replaced
             bottom_table_name = bottom_table_name[0]
+            # Drop the punctuation
             bottom_table_name = bottom_table_name.replace(":", "").strip()
+            # Format to filter the tables in further steps
             bottom_table_name = bottom_table_name.replace(" ", "_").upper()
+            # create an empty list to store column labels
             table_column_labels = []
 
+            # Iterate over extracted rows
             for position, row in enumerate(extracted_rows):
-                # sel2 = Selector(text = re.sub("\<table\>.+\<\/table\>", "", row))
+                # Declare a selector to parse columns
                 sel2 = Selector(text = row)
-                # extracted_text = sel2.xpath('//td//text() | //td//a//text()').extract()
+                # Extract the text from each column in a row
                 extracted_text = sel2.xpath('//td//text()').extract()
+                # Replace the new lines and other white space
                 extracted_text = [element.replace("\r", "") for element in extracted_text]
                 extracted_text = [element.replace("\n", "") for element in extracted_text]
                 extracted_text = [element.replace("\t", "") for element in extracted_text]
 
-                # yield {"pew" : [response.meta["info_link"], len(extracted_text), extracted_text]}
-
-
-
+                # The first row contains
                 if position == 0:
+                    # Pass the column labels to list declared above
                     table_column_labels = extracted_text
+                # Parse every row after the column label row
                 else:
+                    # Parse the table with name CORRESPONDENT
                     if bottom_table_name == "CORRESPONDENT":
+                        # Most consistent version of table formatting (on the
+                        # FERC side). Usually empty name fields are marked with
+                        # "x" or "*", this portion of code deals with such formatting
                         if len(extracted_text) == 5:
-                            # output_row["correspondent_type"] = bottom_table_name + "_" + extracted_text[0]
+                            # Select name fields according to their correct
+                            # absolute position (index)
                             first_name = extracted_text[2]
                             middle_name = extracted_text[3]
                             last_name = extracted_text[1]
+                            # Declare list with name components First, Middle, Last
                             name_component_list = [first_name, middle_name, last_name]
+                            # The most common formatting for empty name field is
+                            # "*", default to this method
                             for component_position, name_component in enumerate(name_component_list):
                                 if name_component == "x":
                                     name_component_list[component_position] = "*"
+                            # Join the name to one string since first or middle
+                            # name are not essential to analysis
                             full_name = ' '.join(map(str, name_component_list))
+                            # Replace "*"
                             full_name = full_name.replace("* ", "").replace("*", "").strip()
 
+                            # Create a column label according to the type of
+                            # correspondent
                             name_column_label = bottom_table_name + "_" + extracted_text[0]  + "_NAME"
                             name_column_label = str(name_column_label).lower()
 
+                            # Create a column label according to the name of
+                            # correspondent's organization name
                             org_column_label = bottom_table_name + "_" + extracted_text[0]  + "_ORGANIZATION"
                             org_column_label = str(org_column_label).lower()
 
+                            # Default name formatting is set to uppercase (there
+                            # are some inconsistencies on FERC side using either
+                            # uppercase or capitalized or lowercase)
                             output_row[name_column_label] = full_name.upper()
                             output_row[org_column_label] = extracted_text[4]
+                        # Less consistent version of name formatting uses empty
+                        # string rather then "x" or "*", therefore no text is
+                        # extracted and relative indexing has to be used
                         else:
                             output_row["correspondent_type"] = bottom_table_name + "_" + extracted_text[0]
+                            # Get the name using relative indexing
                             name_component_list = extracted_text[1:-1]
+                            # The most common formatting for empty name field is
+                            # "*", default to this method
                             for component_position, name_component in enumerate(name_component_list):
                                 if name_component == "x":
                                     name_component_list[component_position] = "*"
+                            # Join the name to one string since first or middle
+                            # name are not essential to analysis
                             full_name = ' '.join(map(str, name_component_list))
+                            # Replace "*"
                             full_name = full_name.replace("* ", "").replace("*", "").strip()
 
+                            # Create a column label according to the type of
+                            # correspondent
                             name_column_label = bottom_table_name + "_" + extracted_text[0]  + "_NAME"
                             name_column_label = str(name_column_label).lower()
 
+                            # Create a column label according to the name of
+                            # correspondent's organization name
                             org_column_label = bottom_table_name + "_" + extracted_text[0]  + "_ORGANIZATION"
                             org_column_label = str(org_column_label).lower()
 
+                            # Default name formatting is set to uppercase (there
+                            # are some inconsistencies on FERC side using either
+                            # uppercase or capitalized or lowercase)
                             output_row[name_column_label] = full_name.upper()
                             output_row[org_column_label] = extracted_text[-1]
 
+                    # Parse the table with name DOCUMENT_TYPE
                     if bottom_table_name == "DOCUMENT_TYPE":
+                        # Separate the class and type with " - "
                         class_type_row = extracted_text[0] + " - " + extracted_text[1]
+                        # Store multiple document types in a list
+                        # Many document submissions/issuances have more than
+                        # one type/class
                         document_class_type.append(class_type_row)
 
+                    # Parse the table with names PARENT_DOCUMENTS and CHILD_DOCUMENTS
+                    # Few submissions/issuances have these hieararchical tables
                     if bottom_table_name in ["PARENT_DOCUMENTS", "CHILD_DOCUMENTS"]:
+                        # Drop empty text fields
                         extracted_text = [element for element in extracted_text if element != ""]
-                        # parent_child_labels = list(map(lambda x: bottom_table_name.split("_")[0].lower() + "_" + x, table_column_labels))
 
+                        # Append the lists of parent/child documents according
+                        # to the listed hierarchy type
                         if bottom_table_name.split("_")[0].lower() == "parent":
                             document_parent_list.append(" - ".join(extracted_text))
                         elif bottom_table_name.split("_")[0].lower() == "child":
                             document_child_list.append(" - ".join(extracted_text))
 
+                    # Parse the table with name ASSOCIATED_NUMBERS
                     if bottom_table_name == "ASSOCIATED_NUMBERS":
+                        # Drop empty text fields
                         extracted_text = [element for element in extracted_text if element != ""]
                         associated_numbers_row = " - ".join(extracted_text)
                         associated_numbers.append(associated_numbers_row)
 
+                    # Parse the table with name DOCKET_NUMBERS
                     if bottom_table_name == "DOCKET_NUMBERS":
+                        # Drop empty text fields
                         extracted_text = [element for element in extracted_text if element != ""]
-
+                        # Join the docket and subdocket in one string
                         docket_numbers_row = "-".join(extracted_text[0:-1])
+                        # Join the full docket string with the docket type
                         docket_numbers_row = " : ".join([docket_numbers_row, extracted_text[-1]])
+                        # Append the list of dockets with all subdockets
+                        # It is not very common but there are issuances with a
+                        # substantially large list of dockets
                         docket_numbers.append(docket_numbers_row)
                     # if bottom_table_name not in ["DOCKET_NUMBERS", "ASSOCIATED_NUMBERS",
                     #         "PARENT_DOCUMENTS", "CHILD_DOCUMENTS", "DOCUMENT_TYPE", "CORRESPONDENT"]:
-
-
-
                         # yield {"pew" : [response.meta["info_link"], bottom_table_name]}
 
 
 
             # yield {"pew" : [response.meta["info_link"], bottom_table_name]}
+
+        # Join each list of strings into one large string
+        # This is done to avoid having too many columns. For example in a case
+        # when a few dozen dockets are listed in one issuance, having a column
+        # for each with result in a sparse matrix with low interpretabiltiy
         document_class_type = ", ".join(document_class_type)
         document_parent_list = ", ".join(document_parent_list)
         document_child_list = ", ".join(document_child_list)
@@ -549,11 +559,11 @@ class FercgovSpider(scrapy.Spider):
             borderless_table_content = sel.xpath('//tr//text()').extract()
 
             yield {"pew" : [response.meta["info_link"], borderless_table_name, borderless_table_content]}
-
+            # Replace the new lines and other white space
             borderless_table_name = [element.replace("\r", "") for element in borderless_table_name if element.replace("\r", "") != ""]
             borderless_table_name = [element.replace("\n", "") for element in borderless_table_name if element.replace("\n", "") != ""]
             borderless_table_name = [element.replace("\t", "") for element in borderless_table_name if element.replace("\t", "") != ""]
-
+            # Replace the new lines and other white space
             borderless_table_content = [element.replace("\r", "") for element in borderless_table_content if element.replace("\r", "") != ""]
             borderless_table_content = [element.replace("\n", "") for element in borderless_table_content if element.replace("\n", "") != ""]
             borderless_table_content = [element.replace("\t", "") for element in borderless_table_content if element.replace("\t", "") != ""]
@@ -568,7 +578,7 @@ class FercgovSpider(scrapy.Spider):
             basic_info_entry = sel.xpath('/td//text()').extract()
             borderless_table_content = sel.xpath('//tr//text()').extract()
 
-            
+
         # yield {"pew" : [response.meta["info_link"], len(document_class_type)]}
         # yield {"pew" : [response.meta["info_link"], output_row]}
         # yield {"pew" : [response.meta["info_link"], output_row["docket_numbers"]]}
@@ -609,10 +619,6 @@ class FercgovSpider(scrapy.Spider):
         # yield {"pew2" : [len(page_rows), docket, docstart, doccounter]}
 
 
-pewpew = ["a", "b", "c"]
-pew2 = "-".join(pewpew[0:-1])
-" - ".join([pew2, pewpew[-1]])
-        # open_in_browser(response)
 
 # stringy = """<td colspan="4">\r\n\t<table width="500" cellpadding="2" align="center" border="1">\r\n\t\t<font face="arial" size="2"><b><u>Parent Documents: </u></b>\r\n\t\t<tr>\r\n\t\t<td width="150" bgcolor="silver"><font face="ARIAL" size="2"><b>Accession Number: </b></font></td>\r\n\t\t<td bgcolor="silver"><font face="ARIAL" size="2"><b>Description: </b></font></td>\r\n\t\t</tr>\r\n\t\t<tr>\r\n\t\t<td width="150"><font face="ARIAL" size="2">\r\n\t\t<a href="doc_info.asp?document_id=14621180">20171120-0015</a>\r\n\t\t</font>\r\n\t\t</td>\r\n\t\t<td><font face="ARIAL" size="2">The State of New York Office of the Attorney General submits three copies of the "Petition for Review of Two FERC Orders" with Exhibits A and B etc. under CP16-17. Part 1 of 6</font></td>\r\n\t\t</tr>\r\n\t</font></table>\r\n\t<br>\r\n\t\r\n\r\n</td>"""
 #
