@@ -203,8 +203,8 @@ class FercgovSpider(scrapy.Spider):
             # Replace the new lines and other white space
             column1 = [element.replace("\r", "") for element in column1 if element.replace("\r", "") != ""]
             column1 = [element.replace("\n", "") for element in column1 if element.replace("\n", "") != ""]
-            itemdata["action_category"] = column1[0]
-            itemdata["action_accession"] = column1[1]
+            # itemdata["action_category"] = column1[0]
+            # itemdata["action_accession"] = column1[1]
 
 
             ## DOC DATE / PUBLISH DATE
@@ -215,8 +215,8 @@ class FercgovSpider(scrapy.Spider):
             column2 = [element.replace("\r", "") for element in column2 if element.replace("\r", "") != ""]
             column2 = [element.replace("\n", "") for element in column2 if element.replace("\n", "") != ""]
             column2 = [element.replace("\t", "") for element in column2 if element.replace("\t", "") != ""]
-            itemdata["date_doc"] = column2[0]
-            itemdata["date_publish"] = column2[1]
+            # itemdata["date_doc"] = column2[0]
+            # itemdata["date_publish"] = column2[1]
             #
             ## DOCKET NUMBER / NUMBERS
             sel2 = Selector(text = columns[2])
@@ -226,10 +226,10 @@ class FercgovSpider(scrapy.Spider):
             column3 = [element.replace("\r", "") for element in column3 if element.replace("\r", "") != ""]
             column3 = [element.replace("\n", "") for element in column3 if element.replace("\n", "") != ""]
             column3 = [element.replace("\t", "") for element in column3 if element.replace("\t", "") != ""]
-            if len(column3) == 1:
-                itemdata["docket_numbers"] = column3[0]
-            else:
-                itemdata["docket_numbers"] = column3
+            # if len(column3) == 1:
+            #     itemdata["docket_numbers"] = column3[0]
+            # else:
+            #     itemdata["docket_numbers"] = column3
 
             ## DESCRIPTION
             sel2 = Selector(text = columns[3])
@@ -239,8 +239,8 @@ class FercgovSpider(scrapy.Spider):
             column4 = [element.replace("\r", "") for element in column4 if element.replace("\r", "") != ""]
             column4 = [element.replace("\n", "") for element in column4 if element.replace("\n", "") != ""]
             column4 = [element.replace("\t", "") for element in column4 if element.replace("\t", "") != ""]
-            itemdata["description"] = column4[0]
-            itemdata["availability"] = column4[1].split("Availability:")[-1].strip()
+            # itemdata["description"] = column4[0]
+            # itemdata["availability"] = column4[1].split("Availability:")[-1].strip()
 
             #
             ## CLASS
@@ -251,12 +251,12 @@ class FercgovSpider(scrapy.Spider):
             column5 = [element.replace("\r", "") for element in column5 if element.replace("\r", "") != ""]
             column5 = [element.replace("\n", "") for element in column5 if element.replace("\n", "") != ""]
             column5 = [element.replace("\t", "") for element in column5 if element.replace("\t", "") != ""]
-            itemdata["class"] = column5[0]
-            itemdata["type"] = column5[1]
+            # itemdata["class"] = column5[0]
+            # itemdata["type"] = column5[1]
 
             ## FILE AND INFO TEXT
             sel2 = Selector(text = columns[6])
-            column6_text = sel2.xpath("//a/text()").extract
+            column6_text = sel2.xpath("//a/text()").extract()
             # Replace the new lines and other white space
             column6_text = [element.replace("\r", "") for element in column6_text if element.replace("\r", "") != ""]
             column6_text = [element.replace("\n", "") for element in column6_text if element.replace("\n", "") != ""]
@@ -274,6 +274,13 @@ class FercgovSpider(scrapy.Spider):
             links_and_text = list(zip(column6_text, column6_link))
             for element in links_and_text:
                 itemdata[str(element[0]).lower() + "_link"] = element[1]
+
+            itemdata["query_docstart"] = response.meta["DocsStart"]
+            itemdata["query_docscount"] = response.meta["DocsCount"]
+            itemdata["query_docslimit"] = response.meta["DocsLimit"]
+            itemdata["query_docket"] = response.meta["docket"]
+            itemdata["query_textsearch"] = response.meta["textsearch"]
+
 
             # Generate a request to the server for the document info page
             # server accepts the doclist code in the form field
@@ -345,6 +352,7 @@ class FercgovSpider(scrapy.Spider):
 
     def parse_info(self, response):
 
+        yield response.meta
         #### Bottom tables in the Info page such as dockets, correspondents etc.
         bottom_tables_xpath = '//table[not(.//table) and .//td and .//font and count(.//td)>1 and .//td[@bgcolor = "silver"]]'
 
@@ -355,7 +363,7 @@ class FercgovSpider(scrapy.Spider):
         bottom_tables_full_xpath = '//td[not(.//table//table) and .//td and .//font and count(.//td)>1 and .//td[@bgcolor = "silver"]]'
 
         ### Basic meta info however more detailed than the general query
-        basic_info_table_xpath = '//tbody/tr[.//font and not(.//table) and .//td[@bgcolor = "silver"] and ./td[not(.//b)]]'
+        basic_info_table_xpath = '//tbody//tr[.//font and not(.//table) and .//td[@bgcolor = "silver"] and ./td[not(.//b)]]'
 
         ### Borderless tables in the info page that contain library data and
         # category data
@@ -558,32 +566,72 @@ class FercgovSpider(scrapy.Spider):
             borderless_table_name = sel.xpath('//b//text()').extract()
             borderless_table_content = sel.xpath('//tr//text()').extract()
 
-            yield {"pew" : [response.meta["info_link"], borderless_table_name, borderless_table_content]}
+            # yield {"pew" : [response.meta["info_link"], borderless_table_name, borderless_table_content]}
             # Replace the new lines and other white space
-            borderless_table_name = [element.replace("\r", "") for element in borderless_table_name if element.replace("\r", "") != ""]
-            borderless_table_name = [element.replace("\n", "") for element in borderless_table_name if element.replace("\n", "") != ""]
-            borderless_table_name = [element.replace("\t", "") for element in borderless_table_name if element.replace("\t", "") != ""]
+            borderless_table_name = [element.replace("\r", "") for element in borderless_table_name if element.replace("\r", "").strip() != ""]
+            borderless_table_name = [element.replace("\n", "") for element in borderless_table_name if element.replace("\n", "").strip() != ""]
+            borderless_table_name = [element.replace("\t", "") for element in borderless_table_name if element.replace("\t", "").strip() != ""]
             # Replace the new lines and other white space
-            borderless_table_content = [element.replace("\r", "") for element in borderless_table_content if element.replace("\r", "") != ""]
-            borderless_table_content = [element.replace("\n", "") for element in borderless_table_content if element.replace("\n", "") != ""]
-            borderless_table_content = [element.replace("\t", "") for element in borderless_table_content if element.replace("\t", "") != ""]
+            borderless_table_content = [element.replace("\r", "") for element in borderless_table_content if element.replace("\r", "").strip() != ""]
+            borderless_table_content = [element.replace("\n", "") for element in borderless_table_content if element.replace("\n", "").strip() != ""]
+            borderless_table_content = [element.replace("\t", "") for element in borderless_table_content if element.replace("\t", "").strip() != ""]
+            # Format entries and append to itemdata
+            for content_element in borderless_table_content:
+                borderless_table_name = "".join(borderless_table_name)
+                borderless_table_name = borderless_table_name.replace(":", "")
+                borderless_table_name = borderless_table_name.strip()
+                borderless_table_name = borderless_table_name.lower()
+                output_row[borderless_table_name + "_" + content_element.lower()] = "X"
+
 
 
 
         basic_info_rows = response.xpath(basic_info_table_xpath).extract()
 
+
         for basic_info_row in basic_info_rows:
             sel = Selector(text = basic_info_row)
-            # row_response = HtmlResponse(url = "none", body=row)
-            basic_info_entry = sel.xpath('/td//text()').extract()
-            borderless_table_content = sel.xpath('//tr//text()').extract()
+            # Extract all column text
+            basic_info_entry = sel.xpath('//td//text()').extract()
+            # Replace all white space  and discard &nbsp
+            basic_info_entry = [element.replace("\r", "") for element in basic_info_entry if element.replace("\r", "").strip() != ""]
+            basic_info_entry = [element.replace("\n", "") for element in basic_info_entry if element.replace("\n", "").strip() != ""]
+            basic_info_entry = [element.replace("\t", "") for element in basic_info_entry if element.replace("\t", "").strip() != ""]
+            basic_info_entry = [element.replace("\t", "") for element in basic_info_entry if element.replace("\t", "").strip() != "&nbsp"]
+            basic_info_entry = [element.strip() for element in basic_info_entry]
+            # Split full row list into lists of 2 (column label + value)
+            basic_info_entry = [basic_info_entry[i:i+2] for i in range(0,len(basic_info_entry),2)]
+            # Iterate over each column label + value pair
+            for entry in basic_info_entry:
+                # Some instances of First Received Date being blank were observed.
+                # Index out of range error is produced every time it occurs since
+                # the column + value pair list that is yielded is of length = 1
+                # i.e. only label is returned
+                try:
+                    # Set column label to lowercase, replace punctuation and
+                    # white space. Do not do the same to values since white space
+                    # is used to separate dates and time, PM and other important
+                    # components
+                    entry_label = entry[0].lower()
+                    entry_label = entry_label.replace("-", "_")
+                    entry_label = entry_label.replace(" ", "_")
+                    entry_label = entry_label.replace(":", "")
+                    output_row[entry_label] = entry[1]
+                    # yield {"pew" : [response.meta["info_link"], entry_label, output_row[entry_label]]}
+                except IndexError:
+                    pass
+
+
+
+                # yield {"pew" : [response.meta["info_link"], output_row[entry_label]]}
+            # yield {"pew" : [response.meta["info_link"], basic_info_entry]}
 
 
         # yield {"pew" : [response.meta["info_link"], len(document_class_type)]}
         # yield {"pew" : [response.meta["info_link"], output_row]}
         # yield {"pew" : [response.meta["info_link"], output_row["docket_numbers"]]}
         # yield {"pew" : [response.meta["info_link"], len(output_row["document_class_type"].split(","))]}
-
+            # yield {"pew" : [response.meta["info_link"], basic_info_entry, borderless_table_content]}
 
             # yield {"pew" : [response.meta["info_link"], bottom_table_name]}
                         # yield {"pew" : extracted_text}
@@ -623,3 +671,10 @@ class FercgovSpider(scrapy.Spider):
 # stringy = """<td colspan="4">\r\n\t<table width="500" cellpadding="2" align="center" border="1">\r\n\t\t<font face="arial" size="2"><b><u>Parent Documents: </u></b>\r\n\t\t<tr>\r\n\t\t<td width="150" bgcolor="silver"><font face="ARIAL" size="2"><b>Accession Number: </b></font></td>\r\n\t\t<td bgcolor="silver"><font face="ARIAL" size="2"><b>Description: </b></font></td>\r\n\t\t</tr>\r\n\t\t<tr>\r\n\t\t<td width="150"><font face="ARIAL" size="2">\r\n\t\t<a href="doc_info.asp?document_id=14621180">20171120-0015</a>\r\n\t\t</font>\r\n\t\t</td>\r\n\t\t<td><font face="ARIAL" size="2">The State of New York Office of the Attorney General submits three copies of the "Petition for Review of Two FERC Orders" with Exhibits A and B etc. under CP16-17. Part 1 of 6</font></td>\r\n\t\t</tr>\r\n\t</font></table>\r\n\t<br>\r\n\t\r\n\r\n</td>"""
 #
 # re.sub("\<table\>(.+)\<\/table\>", "", stringy)
+
+# pew1 = ["pew1"]
+# pew2 = ["pew3"]
+#
+# list(zip(pew1, pew2))
+# import itertools
+# list(itertools.product(pew1, pew2))
