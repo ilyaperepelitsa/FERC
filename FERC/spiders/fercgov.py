@@ -14,6 +14,7 @@ from scrapy.selector import Selector
 from scrapy.http import HtmlResponse
 
 import re
+import json
 
 
 class FercgovSpider(scrapy.Spider):
@@ -239,7 +240,7 @@ class FercgovSpider(scrapy.Spider):
             column4 = [element.replace("\r", "") for element in column4 if element.replace("\r", "") != ""]
             column4 = [element.replace("\n", "") for element in column4 if element.replace("\n", "") != ""]
             column4 = [element.replace("\t", "") for element in column4 if element.replace("\t", "") != ""]
-            # itemdata["description"] = column4[0]
+            itemdata["description"] = column4[0]
             # itemdata["availability"] = column4[1].split("Availability:")[-1].strip()
 
             #
@@ -352,7 +353,7 @@ class FercgovSpider(scrapy.Spider):
 
     def parse_info(self, response):
 
-        yield response.meta
+        # yield response.meta
         #### Bottom tables in the Info page such as dockets, correspondents etc.
         bottom_tables_xpath = '//table[not(.//table) and .//td and .//font and count(.//td)>1 and .//td[@bgcolor = "silver"]]'
 
@@ -621,12 +622,67 @@ class FercgovSpider(scrapy.Spider):
                 except IndexError:
                     pass
 
+        output_row["query_docstart"] = response.meta["query_docstart"]
+        output_row["query_docscount"] = response.meta["query_docscount"]
+        output_row["query_docslimit"] = response.meta["query_docslimit"]
+        output_row["query_docket"] = response.meta["query_docket"]
+        output_row["query_textsearch"] = response.meta["query_textsearch"]
+        output_row["info_link"] = response.meta["info_link"]
+        output_row["file_link"] = response.meta["file_link"]
 
 
-                # yield {"pew" : [response.meta["info_link"], output_row[entry_label]]}
-            # yield {"pew" : [response.meta["info_link"], basic_info_entry]}
+
+        file_query = FormRequest(url = "https://elibrary.ferc.gov/idmws/file_list.asp",
+            formdata = {"doclist" : output_row["info_link"].split("doclist=")[-1]},
+            callback=self.parse_files, dont_filter = True, meta = output_row)
+
+        yield file_query
+        #
+
+        # yield {"pew" : output_row}
+
+    def parse_files(self, response):
+
+        json_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'test.json')
+
+        item_data = response.meta
+        # Delete the meta data that is not used
+        drop_meta = ["download_latency", "download_slot", "download_timeout",
+                        "depth"]
+        for drop_item in drop_meta:
+            del item_data[drop_item]
+
+        #
+        try:
+            with open(json_dir) as f:
+                data = json.load(f)
+            if item_data["info_link"].split("doclist=")[-1] not in data.keys():
+                data.update({item_data["info_link"].split("doclist=")[-1]: item_data})
+        except FileNotFoundError:
+            data = {item_data["info_link"].split("doclist=")[-1]: item_data}
+
+        with open(json_dir, 'w') as f:
+            json.dump(data, f)
+        #
+        # # yield item_data
+
+        # with open('test.json', 'a') as f:
+        #     json.dump({output_row["info_link"].split("doclist=")[-1]: item_data}, f)
+
+        # yield {"pew" : item_data}
+        # yield {"pew" : "pew"}
 
 
+    #### Botto
+
+# with open('test1.json') as f:
+#     data = json.load(f)
+            #
+#
+# pewpew = {"a" : 1, "b" : 2}
+# "a" in pewpew.keys()
+#
+# pew
         # yield {"pew" : [response.meta["info_link"], len(document_class_type)]}
         # yield {"pew" : [response.meta["info_link"], output_row]}
         # yield {"pew" : [response.meta["info_link"], output_row["docket_numbers"]]}
@@ -678,3 +734,10 @@ class FercgovSpider(scrapy.Spider):
 # list(zip(pew1, pew2))
 # import itertools
 # list(itertools.product(pew1, pew2))
+import pandas as pd
+# import os
+# basePath = os.path.dirname(os.path.abspath("__file__"))
+# basePath
+# test_df = pd.read_json("/Users/ilyaperepelitsa/quant/FERC/test.json", orient = "index")
+# test_df.to_csv("/Users/ilyaperepelitsa/quant/FERC/test.csv")
+# test_df.shape
