@@ -15,6 +15,7 @@ from scrapy.http import HtmlResponse
 
 import re
 import json
+import os
 
 
 class FercgovSpider(scrapy.Spider):
@@ -643,6 +644,9 @@ class FercgovSpider(scrapy.Spider):
 
     def parse_files(self, response):
 
+        # file_rows_xpath = "//table[.//a and .//input and not(.//table)]//tr[.//text()[contains(.,'Type')]]/following-sibling::*[not(.//input[@type = 'button'])]"
+        file_rows_xpath = "//table[.//a and .//input]//tr[.//text()[contains(.,'Type')]]/following-sibling::*[not(.//input[@type = 'button']) and not(.//img)]"
+        # file_rows_xpath = "//table"
         json_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'test.json')
 
         item_data = response.meta
@@ -663,6 +667,26 @@ class FercgovSpider(scrapy.Spider):
 
         with open(json_dir, 'w') as f:
             json.dump(data, f)
+
+        sel = Selector(text = response.body)
+
+        file_rows = sel.xpath(file_rows_xpath).extract()
+
+        download_sections = []
+        download_section = []
+
+        for row_index, file_row in enumerate(file_rows):
+            # New selector is declared to select rows in each table
+            sel2 = Selector(text = file_row)
+            # Extract the rows and table name separately
+            hor_line = sel2.xpath('//td[.//hr]').extract()
+            if len(hor_line) == 0:
+                download_section.append(file_row)
+            else:
+                download_sections.append(download_section)
+                download_section = []
+        # open_in_browser(response)
+        yield {"pew" : len(download_sections)}
         #
         # # yield item_data
 
@@ -735,7 +759,7 @@ class FercgovSpider(scrapy.Spider):
 # import itertools
 # list(itertools.product(pew1, pew2))
 import pandas as pd
-# import os
+#
 # basePath = os.path.dirname(os.path.abspath("__file__"))
 # basePath
 # test_df = pd.read_json("/Users/ilyaperepelitsa/quant/FERC/test.json", orient = "index")
