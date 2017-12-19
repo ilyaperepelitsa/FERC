@@ -675,7 +675,7 @@ class FercgovSpider(scrapy.Spider):
         download_sections = []
         download_section = []
 
-        for row_index, file_row in enumerate(file_rows):
+        for file_row in file_rows:
             # New selector is declared to select rows in each table
             sel2 = Selector(text = file_row)
             # Extract the rows and table name separately
@@ -685,8 +685,75 @@ class FercgovSpider(scrapy.Spider):
             else:
                 download_sections.append(download_section)
                 download_section = []
+
+        # yield {"pew" : [len(section) for section in download_sections]}
+
+        for section in download_sections:
+            download_title = ""
+            download_text = []
+            download_links = []
+            for row_index, row in enumerate(section):
+                sel3 = Selector(text = row)
+                # yield {"pew" : [row_index, row]}
+
+                if row_index == 0:
+                    section_title = sel3.xpath('//text()').extract()
+
+                    # yield {"pew" : [response.meta["info_link"], borderless_table_name, borderless_table_content]}
+                    # Replace the new lines and other white space
+                    section_title = [element.replace("\r", "") for element in section_title if element.replace("\r", "").strip() != ""]
+                    section_title = [element.replace("\n", "") for element in section_title if element.replace("\n", "").strip() != ""]
+                    section_title = [element.replace("\t", "") for element in section_title if element.replace("\t", "").strip() != ""]
+                    section_title = [element.replace("\xa0", "") for element in section_title if element.replace("\t", "").strip() != ""]
+                    section_title = [element.strip() for element in section_title if element.strip() != "All"]
+                    section_title = [element for element in section_title if re.search("^(\d+)$", element) != True]
+
+
+
+                    download_title = "".join(section_title)
+                else:
+                    section_text = sel3.xpath('//a/text()').extract()
+
+                    # yield {"pew" : [response.meta["info_link"], borderless_table_name, borderless_table_content]}
+                    # Replace the new lines and other white space
+                    section_text = [element.replace("\r", "") for element in section_text if element.replace("\r", "").strip() != ""]
+                    section_text = [element.replace("\n", "") for element in section_text if element.replace("\n", "").strip() != ""]
+                    section_text = [element.replace("\t", "") for element in section_text if element.replace("\t", "").strip() != ""]
+                    section_text = [element.replace("\xa0", "") for element in section_text if element.replace("\t", "").strip() != ""]
+                    section_text = [element.strip() for element in section_text if element.strip() != ""]
+                    section_text = [element.strip() for element in section_text if element.strip() != "No description given"]
+                    section_text = [element for element in section_text if not re.search("^(\d+)$", element)]
+
+
+                    section_link = sel3.xpath('//a/@href').extract()
+
+                    # yield {"pew" : [response.meta["info_link"], borderless_table_name, borderless_table_content]}
+                    # Replace the new lines and other white space
+                    section_link = [element.replace("\r", "") for element in section_link if element.replace("\r", "").strip() != ""]
+                    section_link = [element.replace("\n", "") for element in section_link if element.replace("\n", "").strip() != ""]
+                    section_link = [element.replace("\t", "") for element in section_link if element.replace("\t", "").strip() != ""]
+                    # section_link = [element.replace("\xa0", "") for element in section_link if element.replace("\t", "").strip() != ""]
+                    # section_link = [element for element in section_link if re.search("^(\d+)$", element) != True]
+
+
+                    if len(section_text) > 0:
+                        for text_element in section_text:
+                            download_text.append(text_element)
+
+                    if len(section_link) > 0:
+                        for link_element in section_link:
+                            download_links.append(link_element)
+
+            # yield {item_data["file_link"] : [len(section_title), len(download_text), len(download_links)]}
+            # item_data[section_title + "_file_title"] = ", ".join(download_text)
+            # item_data[section_title + "_file_link"] = ", ".join(download_links)
+            # yield download_text
+            # yield download_links
+            yield {item_data["file_link"] : download_text}
+            yield {item_data["file_link"] : download_links}
+
         # open_in_browser(response)
-        yield {"pew" : len(download_sections)}
+
         #
         # # yield item_data
 
@@ -695,7 +762,6 @@ class FercgovSpider(scrapy.Spider):
 
         # yield {"pew" : item_data}
         # yield {"pew" : "pew"}
-
 
     #### Botto
 
@@ -758,10 +824,33 @@ class FercgovSpider(scrapy.Spider):
 # list(zip(pew1, pew2))
 # import itertools
 # list(itertools.product(pew1, pew2))
-import pandas as pd
+# import pandas as pd
 #
 # basePath = os.path.dirname(os.path.abspath("__file__"))
 # basePath
 # test_df = pd.read_json("/Users/ilyaperepelitsa/quant/FERC/test.json", orient = "index")
 # test_df.to_csv("/Users/ilyaperepelitsa/quant/FERC/test.csv")
 # test_df.shape
+# import re
+# m = re.search("^(\d+)$", "195574d")
+# m == True
+# re.search("^(\d+)$", "195574d") != True
+
+listy = ['common/OpenNat.asp?fileID=14767668:1', 'common/OpenNat.asp?fileID=14767668:2', 'common/OpenNat.asp?fileID=14767668:3', 'common/OpenNat.asp?fileID=14767668:4', 'common/OpenNat.asp?fileID=14767668:5', 'common/OpenNat.asp?fileID=14767668:6', 'common/OpenNat.asp?fileID=14767668:7', 'common/OpenNat.asp?fileID=14767668:8', 'common/OpenNat.asp?fileID=14767668:9', 'common/OpenNat.asp?fileID=14767668:10', 'common/OpenNat.asp?fileID=14767668:11', 'common/OpenNat.asp?fileID=14767668:12', 'common/OpenNat.asp?fileID=14767668:13', 'common/OpenNat.asp?fileID=14767668:14', 'common/OpenNat.asp?fileID=14767668:15', 'common/OpenNat.asp?fileID=14767668:16', 'common/OpenNat.asp?fileID=14767668:17', 'common/OpenNat.asp?fileID=14767668:18', 'common/OpenNat.asp?fileID=14767668:19', 'common/OpenNat.asp?fileID=14767668:20', 'common/OpenNat.asp?fileID=14767668:21', 'common/OpenNat.asp?fileID=14767668:22', 'common/OpenNat.asp?fileID=14767668:23', 'common/OpenNat.asp?fileID=14767668:24', 'common/OpenNat.asp?fileID=14767668:25', 'common/OpenNat.asp?fileID=14767668:26', 'common/OpenNat.asp?fileID=14767668:27', 'common/OpenNat.asp?fileID=14767668:28', 'common/OpenNat.asp?fileID=14767668:29', 'common/OpenNat.asp?fileID=14767668:30', 'common/OpenNat.asp?fileID=14767668:31', 'common/OpenNat.asp?fileID=14767668:32', 'common/OpenNat.asp?fileID=14767668:33', 'common/OpenNat.asp?fileID=14767668:34', 'common/OpenNat.asp?fileID=14767668:35', 'common/OpenNat.asp?fileID=14767668:36', 'common/OpenNat.asp?fileID=14767668:37', 'common/OpenNat.asp?fileID=14767668:38']
+#
+", ".join([listy[0]])
+
+# pewpew = listy
+# for pew in pewpew:
+#     m = re.search("^(\d+)$", pew)
+#     if not m:
+#         print(pew)
+#         # pewpew.remove(pew)
+#
+# pewpew
+# listy
+#
+# [pew for pew in listy if re.search("^(\d+)$", str(pew)) != True]
+#
+# m = re.search("^(\d+)$", "32474")
+# m == True
