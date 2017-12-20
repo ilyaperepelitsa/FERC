@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import os
 # Scrapy settings for FERC project
 #
 # For simplicity, this file contains only settings considered important or
@@ -22,11 +22,11 @@ NEWSPIDER_MODULE = 'FERC.spiders'
 ROBOTSTXT_OBEY = False
 
 
-SPLASH_URL = 'http://0.0.0.0:8050'
-
-DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
-
-HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
+# SPLASH_URL = 'http://0.0.0.0:8050'
+#
+# DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
+#
+# HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
 
@@ -52,10 +52,10 @@ DOWNLOAD_DELAY = 3
 
 # Enable or disable spider middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
-SPIDER_MIDDLEWARES = {
-   # 'FERC.middlewares.FercSpiderMiddleware': 543,
-   'scrapy_splash.SplashDeduplicateArgsMiddleware': 100
-}
+# SPIDER_MIDDLEWARES = {
+#    # 'FERC.middlewares.FercSpiderMiddleware': 543,
+#    # 'scrapy_splash.SplashDeduplicateArgsMiddleware': 100
+# }
 
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
@@ -63,8 +63,8 @@ DOWNLOADER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
     'scrapy_fake_useragent.middleware.RandomUserAgentMiddleware': 400,
    # 'FERC.middlewares.MyCustomDownloaderMiddleware': 543,
-   'scrapy_splash.SplashCookiesMiddleware': 723,
-   'scrapy_splash.SplashMiddleware': 725,
+   # 'scrapy_splash.SplashCookiesMiddleware': 723,
+   # 'scrapy_splash.SplashMiddleware': 725,
    'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810
 }
 
@@ -80,6 +80,10 @@ DOWNLOADER_MIDDLEWARES = {
 #    'FERC.pipelines.FercPipeline': 300,
 #}
 
+ITEM_PIPELINES = {
+    'scrapy.pipelines.files.FilesPipeline': 1,
+    'FERC.pipelines.FercPipeline': 300,
+}
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See http://doc.scrapy.org/en/latest/topics/autothrottle.html
 #AUTOTHROTTLE_ENABLED = True

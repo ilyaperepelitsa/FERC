@@ -13,6 +13,10 @@ from scrapy.loader import ItemLoader
 from scrapy.selector import Selector
 from scrapy.http import HtmlResponse
 
+
+from FERC.items import FercItem
+from scrapy.loader import ItemLoader
+
 import re
 import json
 import os
@@ -653,8 +657,9 @@ class FercgovSpider(scrapy.Spider):
         # Delete the meta data that is not used
         drop_meta = ["download_latency", "download_slot", "download_timeout",
                         "depth"]
-        for drop_item in drop_meta:
-            del item_data[drop_item]
+
+        # for drop_item in drop_meta:
+        #     del item_data[drop_item]
 
         #
         try:
@@ -687,6 +692,10 @@ class FercgovSpider(scrapy.Spider):
                 download_section = []
 
         # yield {"pew" : [len(section) for section in download_sections]}
+        all_section_down_titles = []
+        all_section_down_text = []
+        all_section_down_links = []
+
 
         for section in download_sections:
             download_title = ""
@@ -745,12 +754,43 @@ class FercgovSpider(scrapy.Spider):
                             download_links.append(link_element)
 
             # yield {item_data["file_link"] : [len(section_title), len(download_text), len(download_links)]}
-            # item_data[section_title + "_file_title"] = ", ".join(download_text)
-            # item_data[section_title + "_file_link"] = ", ".join(download_links)
+            down_titles = [download_title] * len(download_links)
+            for position, row in enumerate(down_titles):
+                all_section_down_titles.append(down_titles[position])
+                all_section_down_text.append(download_text[position])
+                all_section_down_links.append("https://elibrary.ferc.gov/idmws/" + download_links[position])
+
+            item_data[section_title[0].lower().replace(" ", "_") + "_file_down_text"] = ", ".join(download_text)
+            item_data[section_title[0].lower().replace(" ", "_") + "_file_down_link"] = ", ".join(download_links)
+
             # yield download_text
             # yield download_links
-            yield {item_data["file_link"] : download_text}
-            yield {item_data["file_link"] : download_links}
+            # yield {(section_title[0] + "_file_title").lower().replace(" ", "_") : ", ".join(download_text)}
+            # yield {(section_title[0] + "_file_link").lower().replace(" ", "_") : ", ".join(download_links)}
+
+        # yield {"pew" : [len(all_section_down_titles), len(all_section_down_text), len(all_section_down_links)]}
+
+        for index, url in enumerate(all_section_down_links):
+            yield scrapy.Request(url, callback=self.parse_down,
+                    meta = {"title" : all_section_down_titles[index],
+                            "text" : all_section_down_text[index],
+                            "initial_url" : all_section_down_links[index],
+                            "item_data" : item_data})
+
+
+    def parse_down(self, response):
+
+        file_name = str(response.url).split("&")[0].split("downloadfile=")[1]
+        file_format = re.search("[a-z]+$", file_name).group()
+        yield {"pew" : [file_format, response.meta["title"], response.meta["text"]]}
+        # yield {"pew" : response.body}
+        # item_ferc = ItemLoader(FercItem(), response = response)
+        # item_ferc.add_value('file_urls', all_section_down_links)
+        # item = item_ferc.load_item()
+        # yield item
+
+        # yield {"pew" : set(download_text)}
+
 
         # open_in_browser(response)
 
@@ -764,6 +804,7 @@ class FercgovSpider(scrapy.Spider):
         # yield {"pew" : "pew"}
 
     #### Botto
+
 
 # with open('test1.json') as f:
 #     data = json.load(f)
@@ -836,9 +877,9 @@ class FercgovSpider(scrapy.Spider):
 # m == True
 # re.search("^(\d+)$", "195574d") != True
 
-listy = ['common/OpenNat.asp?fileID=14767668:1', 'common/OpenNat.asp?fileID=14767668:2', 'common/OpenNat.asp?fileID=14767668:3', 'common/OpenNat.asp?fileID=14767668:4', 'common/OpenNat.asp?fileID=14767668:5', 'common/OpenNat.asp?fileID=14767668:6', 'common/OpenNat.asp?fileID=14767668:7', 'common/OpenNat.asp?fileID=14767668:8', 'common/OpenNat.asp?fileID=14767668:9', 'common/OpenNat.asp?fileID=14767668:10', 'common/OpenNat.asp?fileID=14767668:11', 'common/OpenNat.asp?fileID=14767668:12', 'common/OpenNat.asp?fileID=14767668:13', 'common/OpenNat.asp?fileID=14767668:14', 'common/OpenNat.asp?fileID=14767668:15', 'common/OpenNat.asp?fileID=14767668:16', 'common/OpenNat.asp?fileID=14767668:17', 'common/OpenNat.asp?fileID=14767668:18', 'common/OpenNat.asp?fileID=14767668:19', 'common/OpenNat.asp?fileID=14767668:20', 'common/OpenNat.asp?fileID=14767668:21', 'common/OpenNat.asp?fileID=14767668:22', 'common/OpenNat.asp?fileID=14767668:23', 'common/OpenNat.asp?fileID=14767668:24', 'common/OpenNat.asp?fileID=14767668:25', 'common/OpenNat.asp?fileID=14767668:26', 'common/OpenNat.asp?fileID=14767668:27', 'common/OpenNat.asp?fileID=14767668:28', 'common/OpenNat.asp?fileID=14767668:29', 'common/OpenNat.asp?fileID=14767668:30', 'common/OpenNat.asp?fileID=14767668:31', 'common/OpenNat.asp?fileID=14767668:32', 'common/OpenNat.asp?fileID=14767668:33', 'common/OpenNat.asp?fileID=14767668:34', 'common/OpenNat.asp?fileID=14767668:35', 'common/OpenNat.asp?fileID=14767668:36', 'common/OpenNat.asp?fileID=14767668:37', 'common/OpenNat.asp?fileID=14767668:38']
-#
-", ".join([listy[0]])
+
+# #
+# ", ".join([listy[0]])
 
 # pewpew = listy
 # for pew in pewpew:
@@ -854,3 +895,11 @@ listy = ['common/OpenNat.asp?fileID=14767668:1', 'common/OpenNat.asp?fileID=1476
 #
 # m = re.search("^(\d+)$", "32474")
 # m == True
+
+
+# pewpew = list(pew.keys())
+#
+# newlist = filter(re.compile("file_link").match, pewpew)
+# newlist = filter(re.compile("PDF_file_title").match, pewpew)
+# [i for i in newlist]
+re.search("[a-z]+$", '20171109%2D3023%2832521870%29%2Edocx').group()
