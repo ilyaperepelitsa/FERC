@@ -57,11 +57,12 @@ pip3 install scrapy-fake-useragent
 
 ## Setup
 Before starting the project - open the repository folder that you cloned and go
-to the *FERC* folder that contains the *spiders* folder. Open the *fercgov.py*
+to the **FERC** folder that contains the **spiders** folder. Open the
+**fercgov.py**
 file with a text editor and go to line 30 for general info and description.
-After reading the description navigate to lines *104* and *107* - your search
-parameters are there. The docket parameter *HAS* to be a list even if it has one
-or zero dockets (empty list). Respectively, variable *search* has to be a
+After reading the description navigate to lines **104** and **107** - your search
+parameters are there. The docket parameter **HAS** to be a list even if it has one
+or zero dockets (empty list). Respectively, variable **search** has to be a
 string, current version of this project doesn't support a list of strings since
 it mimics the basic functionality of
 [FERC](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp) search form.
@@ -69,7 +70,7 @@ it mimics the basic functionality of
 Make sure that the search parameters are the ones that you need (for the
 project(s) that you're inquiring about).
 
-The *settings* file in the FERC directory has the setting:
+The **settings** file in the FERC directory has the setting:
 ``` python
 DOWNLOAD_DELAY = 5
 ```
@@ -80,7 +81,7 @@ good enough delay ([Scrapy](https://scrapy.org) processes this default delay
 with some randomization so that delays look more realistic) that shouldn't cause
 the servers to go down and consume much of processing power by overloading. You
 can manually change it to higher or lower numbers (down to 0) depending on your
-project. *This setting is your responsibility*, consider yourself warned.
+project. **This setting is your responsibility**, consider yourself warned.
 
 ## Launch
 After installing the libraries, just cd into the directory of the repository
