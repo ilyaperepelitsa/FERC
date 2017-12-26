@@ -6,19 +6,25 @@
 ## General Information
 
 The aim of this project is to assist with extraction of documents submitted to
-the Federal Energy Regulatory Commission (FERC) and issued by FERC.
+the Federal Energy Regulatory Commission
+([FERC](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp)) and issued by
+[FERC](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp).
 
 The purpose of this project is to provide tools for extracting all the meta data
-and documents relating to the documents that can be found in FERC online library
+and documents relating to the documents that can be found in
+[FERC](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp) online library
 available for public access. The tools provided in this repository allow to pass
 a string to the search query (search by some text such as "pipeline") and/or a
 docket that has been assigned to a specific project (or a list of dockets).
 
-The way FERC handles HTML pages is not very friendly for the conventional means
-of web scraping. Links are not links, file links don't actually point to the
+The way [FERC](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp) handles
+HTML pages is not very friendly for the conventional means of web scraping.
+Links are not links, file links don't actually point to the
 existing files. Every link generates either a GET or POST HTTP request and such
-request is processed by the FERC server. This scraper does all the HTTP request
-work by itself and yields traditionally acceptable output.
+request is processed by the
+[FERC](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp) server.
+This scraper does all the HTTP request work by itself and yields traditionally
+acceptable output.
 
 ## Installation
 
@@ -38,7 +44,9 @@ The only other external library that this project relies on is a library that
 was created for [Scrapy](https://scrapy.org) and is called
 [scrapy-fake-useragent](https://github.com/alecxe/scrapy-fake-useragent). This
 library creates fake headers for requests so that requests look like they are
-coming from random browsers. FERC bans high volume of requests coming in
+coming from random browsers.
+[FERC](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp) bans high
+volume of requests coming in
 frequently. The fake browser headers is just one step away from getting banned.
 In order to install both libraries type:
 
@@ -55,7 +63,8 @@ After reading the description navigate to lines *104* and *107* - your search
 parameters are there. The docket parameter *HAS* to be a list even if it has one
 or zero dockets (empty list). Respectively, variable *search* has to be a
 string, current version of this project doesn't support a list of strings since
-it mimics the basic functionality of FERC search form.
+it mimics the basic functionality of
+[FERC](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp) search form.
 
 Make sure that the search parameters are the ones that you need (for the
 project(s) that you're inquiring about).
@@ -64,7 +73,9 @@ The *settings* file in the FERC directory has the setting:
 ``` python
 DOWNLOAD_DELAY = 5
 ```
-By default this project is ethical towards the FERC servers - 3 seconds is a
+By default this project is ethical towards the
+[FERC](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp) servers - 5
+seconds is a
 good enough delay ([Scrapy](https://scrapy.org) processes this default delay
 with some randomization so that delays look more realistic) that shouldn't cause
 the servers to go down and consume much of processing power by overloading. You
@@ -91,8 +102,8 @@ files directly.
 ## Random important details
 * Do not launch the scraper on weekends. I think someone physically turns off
 the server - no request returns any response
-* FERC bans for some noticeable time - the easiest way to check is to simulate a
-query in a browser
+* [FERC](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp) bans for some
+noticeable time - the easiest way to check is to simulate a query in a browser
   * Think about your requests in advance - if you play with the scraper for too
 long and get banned you will have to wait for the ban to go down. Use it only
 for the requess that you are sure about (tested docket numbers, proper search
