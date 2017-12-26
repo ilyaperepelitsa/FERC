@@ -21,6 +21,11 @@ import re
 import json
 import os
 
+from datetime import datetime
+
+
+base_folder = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+download_folder = os.path.join(base_folder, 'download_folder')
 
 class FercgovSpider(scrapy.Spider):
     """
@@ -100,6 +105,9 @@ class FercgovSpider(scrapy.Spider):
     # dockets = []
     # search = "pipeline"
     search = ""
+
+    # Path to the JSON output file
+    json_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'log.json')
 
     def parse(self, response):
 
@@ -563,16 +571,17 @@ class FercgovSpider(scrapy.Spider):
         output_row["associated_numbers"] = associated_numbers
         output_row["docket_numbers"] = docket_numbers
 
-
+        # Extract information from the middle table
+        # Table with no borders contains minor information and isn't clearly
+        # displayed as a table
         borderless_tables = response.xpath(borderless_tables_xpath).extract()
 
         for borderless_table in borderless_tables:
             sel = Selector(text = borderless_table)
-            # row_response = HtmlResponse(url = "none", body=row)
+            # Extract the labels
             borderless_table_name = sel.xpath('//b//text()').extract()
+            # Extract the text
             borderless_table_content = sel.xpath('//tr//text()').extract()
-
-            # yield {"pew" : [response.meta["info_link"], borderless_table_name, borderless_table_content]}
             # Replace the new lines and other white space
             borderless_table_name = [element.replace("\r", "") for element in borderless_table_name if element.replace("\r", "").strip() != ""]
             borderless_table_name = [element.replace("\n", "") for element in borderless_table_name if element.replace("\n", "").strip() != ""]
@@ -581,17 +590,18 @@ class FercgovSpider(scrapy.Spider):
             borderless_table_content = [element.replace("\r", "") for element in borderless_table_content if element.replace("\r", "").strip() != ""]
             borderless_table_content = [element.replace("\n", "") for element in borderless_table_content if element.replace("\n", "").strip() != ""]
             borderless_table_content = [element.replace("\t", "") for element in borderless_table_content if element.replace("\t", "").strip() != ""]
-            # Format entries and append to itemdata
+            # Format entries and append to item data dictionary
             for content_element in borderless_table_content:
                 borderless_table_name = "".join(borderless_table_name)
                 borderless_table_name = borderless_table_name.replace(":", "")
                 borderless_table_name = borderless_table_name.strip()
                 borderless_table_name = borderless_table_name.lower()
+                # Mark the categories with binary labeling
                 output_row[borderless_table_name + "_" + content_element.lower()] = "X"
 
-
-
-
+        # Extract the table with basic info contained at the top of the page
+        # Information usually mirrors the general query results page
+        # with some extra information
         basic_info_rows = response.xpath(basic_info_table_xpath).extract()
 
 
@@ -627,89 +637,87 @@ class FercgovSpider(scrapy.Spider):
                 except IndexError:
                     pass
 
+        # Populate the output row with query data
+        # Preserves search query data for future queries
         output_row["query_docstart"] = response.meta["query_docstart"]
         output_row["query_docscount"] = response.meta["query_docscount"]
         output_row["query_docslimit"] = response.meta["query_docslimit"]
         output_row["query_docket"] = response.meta["query_docket"]
         output_row["query_textsearch"] = response.meta["query_textsearch"]
+        # Links to the info and file links of the submission/issuance
         output_row["info_link"] = response.meta["info_link"]
         output_row["file_link"] = response.meta["file_link"]
 
-
-
+        # Generate the request to the file page
         file_query = FormRequest(url = "https://elibrary.ferc.gov/idmws/file_list.asp",
             formdata = {"doclist" : output_row["info_link"].split("doclist=")[-1]},
             callback=self.parse_files, dont_filter = True, meta = output_row)
 
+        # Yield the request
         yield file_query
-        #
 
-        # yield {"pew" : output_row}
 
     def parse_files(self, response):
 
-        # file_rows_xpath = "//table[.//a and .//input and not(.//table)]//tr[.//text()[contains(.,'Type')]]/following-sibling::*[not(.//input[@type = 'button'])]"
+        # Declare the xpath for the row extraction
         file_rows_xpath = "//table[.//a and .//input]//tr[.//text()[contains(.,'Type')]]/following-sibling::*[not(.//input[@type = 'button']) and not(.//img)]"
-        # file_rows_xpath = "//table"
-        json_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'test.json')
 
+        # Data returned by the final crawl node is inherited from the
+        # output row passed as meta
         item_data = response.meta
-        # Delete the meta data that is not used
-        drop_meta = ["download_latency", "download_slot", "download_timeout",
-                        "depth"]
-
-        # for drop_item in drop_meta:
-        #     del item_data[drop_item]
-
-        #
-        try:
-            with open(json_dir) as f:
-                data = json.load(f)
-            if item_data["info_link"].split("doclist=")[-1] not in data.keys():
-                data.update({item_data["info_link"].split("doclist=")[-1]: item_data})
-        except FileNotFoundError:
-            data = {item_data["info_link"].split("doclist=")[-1]: item_data}
-
-        with open(json_dir, 'w') as f:
-            json.dump(data, f)
 
         sel = Selector(text = response.body)
 
+        # Extract file rows from the returned page
         file_rows = sel.xpath(file_rows_xpath).extract()
 
+        # File page consists of sections dedicated to each file format
+        # Declare an empty list to populate with each section
         download_sections = []
+        # Individual section that is populated, passed to the list of
+        # sections and reinitialized
         download_section = []
 
         for file_row in file_rows:
             # New selector is declared to select rows in each table
             sel2 = Selector(text = file_row)
-            # Extract the rows and table name separately
+            # Extract the columns that have a horizontal rule tag
+            # Sections are separated by horizontal lines
             hor_line = sel2.xpath('//td[.//hr]').extract()
+            # If no such column is extracted - pass the row to the section
             if len(hor_line) == 0:
                 download_section.append(file_row)
+            # If there is a column with horizontal rule - break the section and
+            # pass it to the sections list, declare an empty section
             else:
                 download_sections.append(download_section)
                 download_section = []
 
-        # yield {"pew" : [len(section) for section in download_sections]}
+        # Declare three lists of title sections, file names and links to files
         all_section_down_titles = []
         all_section_down_text = []
         all_section_down_links = []
 
 
         for section in download_sections:
+            # Populate individual section lists
             download_title = ""
             download_text = []
             download_links = []
+            # Iterate over all the rows in each section
             for row_index, row in enumerate(section):
+                # Declare a selector to parse each row
                 sel3 = Selector(text = row)
-                # yield {"pew" : [row_index, row]}
-
+                # First extracted row contains title information
+                # Titles are separated by format so that files of one format
+                # appear under the same section title
                 if row_index == 0:
                     section_title = sel3.xpath('//text()').extract()
 
-                    # yield {"pew" : [response.meta["info_link"], borderless_table_name, borderless_table_content]}
+
                     # Replace the new lines and other white space
+                    # Also ignore some data that doesn't carry information like
+                    # file size
                     section_title = [element.replace("\r", "") for element in section_title if element.replace("\r", "").strip() != ""]
                     section_title = [element.replace("\n", "") for element in section_title if element.replace("\n", "").strip() != ""]
                     section_title = [element.replace("\t", "") for element in section_title if element.replace("\t", "").strip() != ""]
@@ -717,13 +725,12 @@ class FercgovSpider(scrapy.Spider):
                     section_title = [element.strip() for element in section_title if element.strip() != "All"]
                     section_title = [element for element in section_title if re.search("^(\d+)$", element) != True]
 
-
-
+                    # Concatenate the section title into one string
                     download_title = "".join(section_title)
                 else:
+                    # Extract the file link text
                     section_text = sel3.xpath('//a/text()').extract()
 
-                    # yield {"pew" : [response.meta["info_link"], borderless_table_name, borderless_table_content]}
                     # Replace the new lines and other white space
                     section_text = [element.replace("\r", "") for element in section_text if element.replace("\r", "").strip() != ""]
                     section_text = [element.replace("\n", "") for element in section_text if element.replace("\n", "").strip() != ""]
@@ -733,173 +740,215 @@ class FercgovSpider(scrapy.Spider):
                     section_text = [element.strip() for element in section_text if element.strip() != "No description given"]
                     section_text = [element for element in section_text if not re.search("^(\d+)$", element)]
 
-
+                    # Extract the file link urls
                     section_link = sel3.xpath('//a/@href').extract()
 
-                    # yield {"pew" : [response.meta["info_link"], borderless_table_name, borderless_table_content]}
                     # Replace the new lines and other white space
                     section_link = [element.replace("\r", "") for element in section_link if element.replace("\r", "").strip() != ""]
                     section_link = [element.replace("\n", "") for element in section_link if element.replace("\n", "").strip() != ""]
                     section_link = [element.replace("\t", "") for element in section_link if element.replace("\t", "").strip() != ""]
-                    # section_link = [element.replace("\xa0", "") for element in section_link if element.replace("\t", "").strip() != ""]
-                    # section_link = [element for element in section_link if re.search("^(\d+)$", element) != True]
 
-
+                    # Populate the list of file titles
                     if len(section_text) > 0:
                         for text_element in section_text:
                             download_text.append(text_element)
 
+                    # Populate the list of file links
                     if len(section_link) > 0:
                         for link_element in section_link:
                             download_links.append(link_element)
 
-            # yield {item_data["file_link"] : [len(section_title), len(download_text), len(download_links)]}
+            # Repeat the section title N times where N is the size of file list
             down_titles = [download_title] * len(download_links)
+            # Populate the full lists of titles, section titles and links
             for position, row in enumerate(down_titles):
                 all_section_down_titles.append(down_titles[position])
                 all_section_down_text.append(download_text[position])
                 all_section_down_links.append("https://elibrary.ferc.gov/idmws/" + download_links[position])
 
-            item_data[section_title[0].lower().replace(" ", "_") + "_file_down_text"] = ", ".join(download_text)
-            item_data[section_title[0].lower().replace(" ", "_") + "_file_down_link"] = ", ".join(download_links)
+            # Create columns of link titles and link urls for each type of document :
+            # i.e. a column for pdf links, a column for pdf file titles etc.
+            item_data["file_down_text_" + section_title[0].lower().replace(" ", "_")] = ", ".join(download_text)
+            item_data["file_down_link_" + section_title[0].lower().replace(" ", "_")] = ", ".join(download_links)
 
-            # yield download_text
-            # yield download_links
-            # yield {(section_title[0] + "_file_title").lower().replace(" ", "_") : ", ".join(download_text)}
-            # yield {(section_title[0] + "_file_link").lower().replace(" ", "_") : ", ".join(download_links)}
+        # Create the top level DOCKET + SEARCH_STRING folder path
+        docket_dir = [item_data["query_docket"], item_data["query_textsearch"]]
+        docket_dir = [element for element in docket_dir if element != ""]
+        docket_dir = "_".join(docket_dir)
+        docket_path = os.path.join(download_folder, docket_dir)
+        # Convert the document posting date to the right format:
+        # Year_Month(month)_date for convenient folder sorting by name
+        doc_date = datetime.strptime(item_data["document_date"].replace("/", "_"), "%m_%d_%Y").date()
+        # Create item path using date
+        item_path = os.path.join(docket_path, doc_date.strftime("%Y_%m(%B)_%d"))
+        # Distinguish between publicly available documents and others, use
+        # this data in folder naming so that it's apparent that the folder is
+        # empty due to document's status
+        if item_data["available"] == "Public":
+            item_accession_path = os.path.join(item_path, item_data["accession_number"].replace("-", "_"))
+        else:
+            item_accession_path = os.path.join(item_path, item_data["accession_number"].replace("-", "_") + "_EMPTY_" + item_data["available"])
 
-        # yield {"pew" : [len(all_section_down_titles), len(all_section_down_text), len(all_section_down_links)]}
+        # Record the folder location data in item dictionary
+        item_data["path"] = str(item_accession_path)
+        # Record all the names and links of the files downloaded
+        item_data["all_file_names"] = ", ".join(all_section_down_text)
+        item_data["all_file_links"] = ", ".join(all_section_down_links)
 
-        for index, url in enumerate(all_section_down_links):
-            yield scrapy.Request(url, callback=self.parse_down,
-                    meta = {"title" : all_section_down_titles[index],
-                            "text" : all_section_down_text[index],
-                            "initial_url" : all_section_down_links[index],
-                            "item_data" : item_data})
+        # Copy the item data
+        item_data2 = item_data.copy()
+        # Drop the Scrapy meta data that is automatically passed into
+        # meta part of the object
+        drop_meta = ["download_latency", "download_slot", "download_timeout",
+                        "depth", "retry_times"]
+        for drop_item in drop_meta:
+            del item_data2[drop_item]
+
+        # If the file exists - open it and update with the current item data
+        try:
+            with open(self.json_dir) as f:
+                data = json.load(f)
+            # If the data isn't in the dictionary already - write it to the file
+            if item_data2["info_link"].split("doclist=")[-1] not in data.keys():
+                data.update({item_data2["info_link"].split("doclist=")[-1]: item_data2})
+                # Write the file
+                with open(self.json_dir, 'w') as f:
+                    json.dump(data, f)
+                # If the document is availavle for download - yield a download
+                # request
+                if item_data["available"] == "Public":
+                    for index, url in enumerate(all_section_down_links):
+                        yield scrapy.Request(url, callback=self.parse_down,
+                                meta = {"title" : all_section_down_titles[index],
+                                        "text" : all_section_down_text[index],
+                                        "initial_url" : all_section_down_links[index],
+                                        "item_data" : item_data})
+                # If not a public document - create an empty folder
+                else:
+                    if os.path.exists(download_folder):
+                        pass
+                    else:
+                        os.mkdir(download_folder)
+                    if os.path.exists(docket_path):
+                        pass
+                    else:
+                        os.mkdir(docket_path)
+                    if os.path.exists(item_path):
+                        pass
+                    else:
+                        os.mkdir(item_path)
+                    if os.path.exists(item_accession_path):
+                        pass
+                    else:
+                        os.mkdir(item_accession_path)
+                    unique_titles = list(set(all_section_down_titles))
+                    for unique_title in unique_titles:
+                        unique_title_path = os.path.join(item_accession_path, unique_title)
+                        if os.path.exists(unique_title_path):
+                            pass
+                        else:
+                            os.mkdir(unique_title_path)
+        # If the file doesn't exist (scraper ran for the first time) - create the file
+        except FileNotFoundError:
+            data = {item_data2["info_link"].split("doclist=")[-1]: item_data2}
+            with open(self.json_dir, 'w') as f:
+                json.dump(data, f)
+            # If the document is availavle for download - yield a download
+            # request
+            if item_data["available"] == "Public":
+                for index, url in enumerate(all_section_down_links):
+                    yield scrapy.Request(url, callback=self.parse_down,
+                            meta = {"title" : all_section_down_titles[index],
+                                    "text" : all_section_down_text[index],
+                                    "initial_url" : all_section_down_links[index],
+                                    "item_data" : item_data})
+            # If not a public document - create an empty folder
+            else:
+                if os.path.exists(download_folder):
+                    pass
+                else:
+                    os.mkdir(download_folder)
+                if os.path.exists(docket_path):
+                    pass
+                else:
+                    os.mkdir(docket_path)
+                if os.path.exists(item_path):
+                    pass
+                else:
+                    os.mkdir(item_path)
+                if os.path.exists(item_accession_path):
+                    pass
+                else:
+                    os.mkdir(item_accession_path)
+                unique_titles = list(set(all_section_down_titles))
+                for unique_title in unique_titles:
+                    unique_title_path = os.path.join(item_accession_path, unique_title)
+                    if os.path.exists(unique_title_path):
+                        pass
+                    else:
+                        os.mkdir(unique_title_path)
 
 
     def parse_down(self, response):
 
+        # Inherit item data from the request meta (passed to response)
+        item_data = response.meta["item_data"]
+        # Request is bounced via internal FERC server procedure, the end
+        # url contains the file format, it's the only way to get the correct
+        # file format
         file_name = str(response.url).split("&")[0].split("downloadfile=")[1]
         file_format = re.search("[a-z]+$", file_name).group()
-        yield {"pew" : [file_format, response.meta["title"], response.meta["text"]]}
-        # yield {"pew" : response.body}
-        # item_ferc = ItemLoader(FercItem(), response = response)
-        # item_ferc.add_value('file_urls', all_section_down_links)
-        # item = item_ferc.load_item()
-        # yield item
 
-        # yield {"pew" : set(download_text)}
+        # Check whether the file tree exists for all elements of downloaded files
+        # of the item.
+        if os.path.exists(download_folder):
+            pass
+        else:
+            os.mkdir(download_folder)
 
+        docket_dir = [item_data["query_docket"], item_data["query_textsearch"]]
+        docket_dir = [element for element in docket_dir if element != ""]
+        docket_dir = "_".join(docket_dir)
 
-        # open_in_browser(response)
+        docket_path = os.path.join(download_folder, docket_dir)
 
-        #
-        # # yield item_data
+        if os.path.exists(docket_path):
+            pass
+        else:
+            os.mkdir(docket_path)
 
-        # with open('test.json', 'a') as f:
-        #     json.dump({output_row["info_link"].split("doclist=")[-1]: item_data}, f)
+        doc_date = datetime.strptime(item_data["document_date"].replace("/", "_"), "%m_%d_%Y").date()
+        item_path = os.path.join(docket_path, doc_date.strftime("%Y_%m(%B)_%d"))
 
-        # yield {"pew" : item_data}
-        # yield {"pew" : "pew"}
+        if os.path.exists(item_path):
+            pass
+        else:
+            os.mkdir(item_path)
 
-    #### Botto
+        item_accession_path = os.path.join(item_path, item_data["accession_number"].replace("-", "_"))
 
+        if os.path.exists(item_accession_path):
+            pass
+        else:
+            os.mkdir(item_accession_path)
 
-# with open('test1.json') as f:
-#     data = json.load(f)
-            #
-#
-# pewpew = {"a" : 1, "b" : 2}
-# "a" in pewpew.keys()
-#
-# pew
-        # yield {"pew" : [response.meta["info_link"], len(document_class_type)]}
-        # yield {"pew" : [response.meta["info_link"], output_row]}
-        # yield {"pew" : [response.meta["info_link"], output_row["docket_numbers"]]}
-        # yield {"pew" : [response.meta["info_link"], len(output_row["document_class_type"].split(","))]}
-            # yield {"pew" : [response.meta["info_link"], basic_info_entry, borderless_table_content]}
+        unique_title_path = os.path.join(item_accession_path, response.meta["title"])
+        if os.path.exists(unique_title_path):
+            pass
+        else:
+            os.mkdir(unique_title_path)
 
-            # yield {"pew" : [response.meta["info_link"], bottom_table_name]}
-                        # yield {"pew" : extracted_text}
+        # Create the path to the final downloaded file
+        final_file_path = os.path.join(unique_title_path, response.meta["text"] + "." + file_format)
 
-
-        # yield {"pew" : response.meta}
-        # filename = uuid.uuid4()
-        #
-        # with open('/Users/ilyaperepelitsa/quant/' + str(filename) + ".json", "w") as f:
-        #     f.write(response)
-        # yield {"pew" : dir(response)}
-        # yield {"pew" : len(pewpew)}
-        # open_in_browser(response)
-
-
-        # yield({"pew" : dir(self)})
-        # yield {"pew" : self.doccoutner}
-        # yield {"pew1" : self.docstart}
-        # yield {"pew2" : self.docket}
-        # yield {"pew3" : self.docket}
-
-        # yield {"pew" : self.from_crawler}
-        # yield {"pew1" : self.handles_request}
-        # yield {"pew2" : self.log}
-        # yield {"pew" : self.logger}
-        # yield {"pew1" : self.make_requests_from_url}
-        # yield {"pew2" : self.parse_query}
-        # yield {"pew" : self.set_crawler}
-        # yield {"pew1" : self.start_requests}
-        # yield {"pew2" : self.update_settings}
-        # parse_query
-
-        # yield {"pew2" : [len(page_rows), docket, docstart, doccounter]}
-
-
-
-# stringy = """<td colspan="4">\r\n\t<table width="500" cellpadding="2" align="center" border="1">\r\n\t\t<font face="arial" size="2"><b><u>Parent Documents: </u></b>\r\n\t\t<tr>\r\n\t\t<td width="150" bgcolor="silver"><font face="ARIAL" size="2"><b>Accession Number: </b></font></td>\r\n\t\t<td bgcolor="silver"><font face="ARIAL" size="2"><b>Description: </b></font></td>\r\n\t\t</tr>\r\n\t\t<tr>\r\n\t\t<td width="150"><font face="ARIAL" size="2">\r\n\t\t<a href="doc_info.asp?document_id=14621180">20171120-0015</a>\r\n\t\t</font>\r\n\t\t</td>\r\n\t\t<td><font face="ARIAL" size="2">The State of New York Office of the Attorney General submits three copies of the "Petition for Review of Two FERC Orders" with Exhibits A and B etc. under CP16-17. Part 1 of 6</font></td>\r\n\t\t</tr>\r\n\t</font></table>\r\n\t<br>\r\n\t\r\n\r\n</td>"""
-#
-# re.sub("\<table\>(.+)\<\/table\>", "", stringy)
-
-# pew1 = ["pew1"]
-# pew2 = ["pew3"]
-#
-# list(zip(pew1, pew2))
-# import itertools
-# list(itertools.product(pew1, pew2))
-# import pandas as pd
-#
-# basePath = os.path.dirname(os.path.abspath("__file__"))
-# basePath
-# test_df = pd.read_json("/Users/ilyaperepelitsa/quant/FERC/test.json", orient = "index")
-# test_df.to_csv("/Users/ilyaperepelitsa/quant/FERC/test.csv")
-# test_df.shape
-# import re
-# m = re.search("^(\d+)$", "195574d")
-# m == True
-# re.search("^(\d+)$", "195574d") != True
-
-
-# #
-# ", ".join([listy[0]])
-
-# pewpew = listy
-# for pew in pewpew:
-#     m = re.search("^(\d+)$", pew)
-#     if not m:
-#         print(pew)
-#         # pewpew.remove(pew)
-#
-# pewpew
-# listy
-#
-# [pew for pew in listy if re.search("^(\d+)$", str(pew)) != True]
-#
-# m = re.search("^(\d+)$", "32474")
-# m == True
-
-
-# pewpew = list(pew.keys())
-#
-# newlist = filter(re.compile("file_link").match, pewpew)
-# newlist = filter(re.compile("PDF_file_title").match, pewpew)
-# [i for i in newlist]
-re.search("[a-z]+$", '20171109%2D3023%2832521870%29%2Edocx').group()
+        # Do nothing if the file was already downloaded
+        # Extra safe check since the download request wouldn't be issued if the
+        # file has already been downloaded
+        if os.path.exists(final_file_path):
+            pass
+        # Download the file with the proper format if it hasn't been downloaded
+        # yet. Uses "write bytes" so that other files rather than text files
+        # are saved properly
+        else:
+            with open(final_file_path, "wb") as f:
+                f.write(response.body)
