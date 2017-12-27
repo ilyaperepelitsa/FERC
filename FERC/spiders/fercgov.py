@@ -802,7 +802,8 @@ class FercgovSpider(scrapy.Spider):
         drop_meta = ["download_latency", "download_slot", "download_timeout",
                         "depth", "retry_times"]
         for drop_item in drop_meta:
-            del item_data2[drop_item]
+            if drop_item in item_data2.keys():
+                del item_data2[drop_item]
 
         # If the file exists - open it and update with the current item data
         try:

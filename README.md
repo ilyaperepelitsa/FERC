@@ -100,6 +100,21 @@ passed to such requests), in addition the regular
 are internal links to be processed by the server, they don;t actually point to
 files directly.
 
+## Convert to CSV
+The script writes its output to a **log.json** located in the **FERC/FERC**
+directory. JSON was intentionally used as one of the easiest wide-spread formats
+to use (requires no database setup and is easily parsable with python when we
+need to determine whether entries exist) however one may prefer to work with CSV
+since it's readable by Excel and is preferable in the office environment. To
+duplicate the log file run the following commands:
+```
+cd FERC
+python3 process_to_csv.py
+```
+If you just ran the main spider script - you're already in **FERC** directory
+therefore you **cd** only once again (as noted in the code above) to get to
+**FERC/FERC**
+
 ## Random important details
 * Do not launch the scraper on weekends. I think someone physically turns off
 the server - no request returns any response

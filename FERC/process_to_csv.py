@@ -1,4 +1,8 @@
 import pandas as pd
+import os
 
-test_df = pd.read_json("/Users/ilyaperepelitsa/quant/FERC/FERC/test.json", orient = "index")
-test_df.to_csv("/Users/ilyaperepelitsa/quant/FERC/test.csv")
+file_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'FERC/log.json')
+csv_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'FERC/log.csv')
+# print(file_dir)
+test_df = pd.read_json(file_dir, orient = "index")
+test_df.to_csv(csv_dir)
