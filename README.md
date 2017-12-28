@@ -34,6 +34,7 @@ issuing the regular git clone command
 ```
 cd Users/username
 git clone https://github.com/ilyaperepelitsa/FERC_DOC_TRAIL.git
+cd FERC_DOC_TRAIL
 ```
 
 This project relies on [Scrapy](https://scrapy.org) platform designed by
@@ -112,7 +113,7 @@ duplicate the log file run the following commands:
 cd FERC
 python3 process_to_csv.py
 ```
-If you just ran the main spider script - you're already in **FERC** directory
+If you just ran the main spider script - you're already in **FERC_DOC_TRAIL** directory
 therefore you **cd** only once again (as noted in the code above) to get to
 **FERC_DOC_TRAIL/FERC**
 
