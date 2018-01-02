@@ -26,6 +26,10 @@ from datetime import datetime
 
 base_folder = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 download_folder = os.path.join(base_folder, 'download_folder')
+if os.path.exists(download_folder):
+    pass
+else:
+    os.mkdir(download_folder)
 
 class FercgovSpider(scrapy.Spider):
     """
