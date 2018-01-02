@@ -73,10 +73,10 @@ project(s) that you're inquiring about).
 
 The **settings** file in the FERC directory has the setting:
 ``` python
-DOWNLOAD_DELAY = 5
+DOWNLOAD_DELAY = 2
 ```
 By default this project is ethical towards the
-[FERC](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp) servers - 5
+[FERC](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp) servers - 2
 seconds is a
 good enough delay ([Scrapy](https://scrapy.org) processes this default delay
 with some randomization so that delays look more realistic) that shouldn't cause
@@ -104,7 +104,7 @@ files directly.
 ## Downloaded files and log.json
 The script writes its output to a **log.json** located in the
 **FERC_DOC_TRAIL/FERC/download_folder**
-directory. 
+directory.
 
 ## Convert to CSV
 JSON was intentionally used as one of the easiest wide-spread formats
