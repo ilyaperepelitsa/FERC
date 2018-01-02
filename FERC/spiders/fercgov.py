@@ -107,7 +107,7 @@ class FercgovSpider(scrapy.Spider):
     search = ""
 
     # Path to the JSON output file
-    json_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'log.json')
+    json_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'download_folder/log.json')
 
     def parse(self, response):
 
