@@ -7,9 +7,7 @@ from scrapy.utils.response import open_in_browser
 
 
 from scrapy.linkextractors import LinkExtractor
-# from scrape_jobs.items import JobItem
 from scrapy.loader import ItemLoader
-# from scrapy.selector import HtmlXPathSelector
 from scrapy.selector import Selector
 from scrapy.http import HtmlResponse
 
@@ -23,9 +21,11 @@ import os
 
 from datetime import datetime
 
-
+# The path to the current project
 base_folder = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# The path to the folder where files are downloaded and log file is stored
 download_folder = os.path.join(base_folder, 'download_folder')
+# If directory doesn't exist - create it
 if os.path.exists(download_folder):
     pass
 else:
@@ -105,10 +105,10 @@ class FercgovSpider(scrapy.Spider):
     doccounter = 200
     docslimit = 200
     # dockets = ["CP16-17", "CP15-500"]
-    dockets = ["CP16-17"]
-    # dockets = []
-    # search = "pipeline"
-    search = ""
+    # dockets = ["CP16-17"]
+    dockets = []
+    search = "pipeline"
+    # search = ""
 
     # Path to the JSON output file
     json_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'download_folder/log.json')
@@ -772,8 +772,8 @@ class FercgovSpider(scrapy.Spider):
 
             # Create columns of link titles and link urls for each type of document :
             # i.e. a column for pdf links, a column for pdf file titles etc.
-            item_data["file_down_text_" + section_title[0].lower().replace(" ", "_")] = ", ".join(download_text)
-            item_data["file_down_link_" + section_title[0].lower().replace(" ", "_")] = ", ".join(download_links)
+            item_data["file_down_text_" + download_title.lower().replace(" ", "_")] = ", ".join(download_text)
+            item_data["file_down_link_" + download_title.lower().replace(" ", "_")] = ", ".join(download_links)
 
         # Create the top level DOCKET + SEARCH_STRING folder path
         docket_dir = [item_data["query_docket"], item_data["query_textsearch"]]
@@ -799,26 +799,12 @@ class FercgovSpider(scrapy.Spider):
         item_data["all_file_names"] = ", ".join(all_section_down_text)
         item_data["all_file_links"] = ", ".join(all_section_down_links)
 
-        # Copy the item data
-        item_data2 = item_data.copy()
-        # Drop the Scrapy meta data that is automatically passed into
-        # meta part of the object
-        drop_meta = ["download_latency", "download_slot", "download_timeout",
-                        "depth", "retry_times"]
-        for drop_item in drop_meta:
-            if drop_item in item_data2.keys():
-                del item_data2[drop_item]
-
         # If the file exists - open it and update with the current item data
         try:
             with open(self.json_dir) as f:
                 data = json.load(f)
             # If the data isn't in the dictionary already - write it to the file
-            if item_data2["info_link"].split("doclist=")[-1] not in data.keys():
-                data.update({item_data2["info_link"].split("doclist=")[-1]: item_data2})
-                # Write the file
-                with open(self.json_dir, 'w') as f:
-                    json.dump(data, f)
+            if item_data["info_link"].split("doclist=")[-1] not in data.keys():
                 # If the document is availavle for download - yield a download
                 # request
                 if item_data["available"] == "Public":
@@ -855,9 +841,9 @@ class FercgovSpider(scrapy.Spider):
                             os.mkdir(unique_title_path)
         # If the file doesn't exist (scraper ran for the first time) - create the file
         except FileNotFoundError:
-            data = {item_data2["info_link"].split("doclist=")[-1]: item_data2}
-            with open(self.json_dir, 'w') as f:
-                json.dump(data, f)
+            # data = {item_data2["info_link"].split("doclist=")[-1]: item_data2}
+            # with open(self.json_dir, 'w') as f:
+            #     json.dump(data, f)
             # If the document is availavle for download - yield a download
             # request
             if item_data["available"] == "Public":
@@ -898,18 +884,36 @@ class FercgovSpider(scrapy.Spider):
 
         # Inherit item data from the request meta (passed to response)
         item_data = response.meta["item_data"]
+
+        # Copy the item data
+        item_data2 = item_data.copy()
+        # Drop the Scrapy meta data that is automatically passed into
+        # meta part of the object
+        drop_meta = ["download_latency", "download_slot", "download_timeout",
+                        "depth", "retry_times"]
+        for drop_item in drop_meta:
+            if drop_item in item_data2.keys():
+                del item_data2[drop_item]
+
         # Request is bounced via internal FERC server procedure, the end
         # url contains the file format, it's the only way to get the correct
         # file format
-        file_name = str(response.url).split("&")[0].split("downloadfile=")[1]
-        file_format = re.search("[a-z]+$", file_name).group()
+        try:
+            file_name = str(response.url).split("&")[0].split("downloadfile=")[1]
+        except IndexError:
+            yield {"=============FILENAME ERROR=============" : response.url}
 
-        # Check whether the file tree exists for all elements of downloaded files
-        # of the item.
-        if os.path.exists(download_folder):
-            pass
-        else:
-            os.mkdir(download_folder)
+        try:
+            file_format = re.search("[a-z]+$", file_name).group()
+        except AttributeError:
+            yield {"=============FORMAT ERROR=============" : file_name}
+
+        # # Check whether the file tree exists for all elements of downloaded files
+        # # of the item.
+        # if os.path.exists(download_folder):
+        #     pass
+        # else:
+        #     os.mkdir(download_folder)
 
         docket_dir = [item_data["query_docket"], item_data["query_textsearch"]]
         docket_dir = [element for element in docket_dir if element != ""]
@@ -957,3 +961,15 @@ class FercgovSpider(scrapy.Spider):
         else:
             with open(final_file_path, "wb") as f:
                 f.write(response.body)
+            try:
+                with open(self.json_dir) as jsr:
+                    data = json.load(jsr)
+
+                data.update({item_data2["info_link"].split("doclist=")[-1]: item_data2})
+                # Write the file
+
+            except FileNotFoundError:
+                data = {item_data2["info_link"].split("doclist=")[-1]: item_data2}
+
+            with open(self.json_dir, 'w') as jsw:
+                json.dump(data, jsw)
