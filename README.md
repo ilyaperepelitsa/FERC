@@ -164,12 +164,12 @@ the server is down (for the weekend or temporarily). When you get banned your sc
 either produces errors constantly or terminates early. The easiest way to confirm that you are
 banned is to open [this link](https://elibrary.ferc.gov/idmws/search/fercgensearch.asp)
 and click **submit**. If you get the following page in response:
-![ban image](https://imgur.com/neV2QLC "ban image")
+![ban image](https://i.imgur.com/3aiNZJb.jpg "ban image")
 We recommend to wait for some time - a day or two is quite a consistent time but
 there were cases when we were unbanned in less than a day after some aggressive
 testing (where the image comes from).
 You may also see the following page:
-![down image](https://imgur.com/8j4AORe "down image")
+![down image](https://i.imgur.com/AjHdNRQ.png "down image")
 This usually indicates of the server being down - check again in 10 minutes.
 
 
