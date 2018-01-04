@@ -105,10 +105,10 @@ class FercgovSpider(scrapy.Spider):
     doccounter = 200
     docslimit = 200
     # dockets = ["CP16-17", "CP15-500"]
-    # dockets = ["CP16-17"]
-    dockets = []
-    search = "pipeline"
-    # search = ""
+    dockets = ["CP16-17"]
+    # dockets = []
+    # search = "pipeline"
+    search = ""
 
     # Path to the JSON output file
     json_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'download_folder/log.json')
